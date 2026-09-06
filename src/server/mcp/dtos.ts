@@ -125,53 +125,193 @@ export function toProjectSummaryDto(input: {
 export type FlowIncomeDto = {
   id: string;
   concepto: string;
+  tipoId: string;
+  tipo: string;
+  estado: "PAID" | "PENDING";
   vencimiento: string | null;
+  fechaCobro: string | null;
+  montoOriginal: number;
+  monedaOriginal: "USD" | "ARS";
+  tipoCambio: number | null;
   montoUsd: number;
   cliente: string | null;
+  clienteId: string | null;
   proyecto: string | null;
+  proyectoId: string | null;
+  vencido: boolean;
 };
 
 export type FlowExpenseDto = {
   id: string;
   concepto: string;
+  categoriaId: string;
+  tipo: "FIXED" | "VARIABLE";
+  estado: "PAID" | "PENDING";
   vencimiento: string | null;
+  fechaPago: string | null;
+  montoOriginal: number;
+  monedaOriginal: "USD" | "ARS";
+  tipoCambio: number | null;
   montoUsd: number;
   categoria: string;
   proyecto: string | null;
+  proyectoId: string | null;
+  vencido: boolean;
 };
+
+function originalMoney(
+  amountUsd: unknown,
+  amountArs: unknown | null,
+  exchangeRate: unknown | null,
+) {
+  if (amountArs !== null) {
+    return {
+      montoOriginal: money(amountArs),
+      monedaOriginal: "ARS" as const,
+      tipoCambio: exchangeRate === null ? null : money(exchangeRate),
+    };
+  }
+  return {
+    montoOriginal: money(amountUsd),
+    monedaOriginal: "USD" as const,
+    tipoCambio: null,
+  };
+}
+
+function isOverdue(
+  status: "PAID" | "PENDING",
+  dueDate: Date | string | null,
+  today: Date,
+) {
+  const due = date(dueDate);
+  return status === "PENDING" && due !== null && due < date(today)!;
+}
 
 export function toFlowIncomeDto(input: {
   id: string;
   concept: string;
+  status: "PAID" | "PENDING";
   dueDate: Date | string | null;
+  effectiveDate: Date | string | null;
   amountUsd: unknown;
-  client: { name: string } | null;
-  project: { name: string } | null;
-}): FlowIncomeDto {
+  amountArs: unknown | null;
+  exchangeRate: unknown | null;
+  type: { id: string; name: string };
+  client: { id: string; name: string } | null;
+  project: { id: string; name: string } | null;
+}, today: Date): FlowIncomeDto {
+  const original = originalMoney(
+    input.amountUsd,
+    input.amountArs,
+    input.exchangeRate,
+  );
   return {
     id: input.id,
     concepto: input.concept,
+    tipoId: input.type.id,
+    tipo: input.type.name,
+    estado: input.status,
     vencimiento: date(input.dueDate),
+    fechaCobro: date(input.effectiveDate),
+    ...original,
     montoUsd: money(input.amountUsd),
     cliente: input.client?.name ?? null,
+    clienteId: input.client?.id ?? null,
     proyecto: input.project?.name ?? null,
+    proyectoId: input.project?.id ?? null,
+    vencido: isOverdue(input.status, input.dueDate, today),
   };
 }
 
 export function toFlowExpenseDto(input: {
   id: string;
   concept: string;
+  type: "FIXED" | "VARIABLE";
+  status: "PAID" | "PENDING";
   dueDate: Date | string | null;
+  effectiveDate: Date | string | null;
   amountUsd: unknown;
-  category: { name: string };
-  project: { name: string } | null;
-}): FlowExpenseDto {
+  amountArs: unknown | null;
+  exchangeRate: unknown | null;
+  category: { id: string; name: string };
+  project: { id: string; name: string } | null;
+}, today: Date): FlowExpenseDto {
+  const original = originalMoney(
+    input.amountUsd,
+    input.amountArs,
+    input.exchangeRate,
+  );
   return {
     id: input.id,
     concepto: input.concept,
+    categoriaId: input.category.id,
+    tipo: input.type,
+    estado: input.status,
     vencimiento: date(input.dueDate),
+    fechaPago: date(input.effectiveDate),
+    ...original,
     montoUsd: money(input.amountUsd),
     categoria: input.category.name,
     proyecto: input.project?.name ?? null,
+    proyectoId: input.project?.id ?? null,
+    vencido: isOverdue(input.status, input.dueDate, today),
+  };
+}
+
+export type ProjectAgreementDto = {
+  montoOriginal: number;
+  monedaOriginal: "USD" | "ARS";
+  tipoCambio: number | null;
+  montoUsd: number;
+};
+
+export function toProjectAgreementDto(input: {
+  originalAmount: unknown | null;
+  currency: "USD" | "ARS" | null;
+  exchangeRate: unknown | null;
+  amountUsd: unknown | null;
+}): ProjectAgreementDto | null {
+  if (
+    input.originalAmount === null ||
+    input.currency === null ||
+    input.amountUsd === null
+  ) {
+    return null;
+  }
+  return {
+    montoOriginal: money(input.originalAmount),
+    monedaOriginal: input.currency,
+    tipoCambio:
+      input.exchangeRate === null ? null : money(input.exchangeRate),
+    montoUsd: money(input.amountUsd),
+  };
+}
+
+export function toPlanningTaskDto(input: {
+  id: string;
+  name: string;
+  description: string | null;
+  type: "TASK" | "MILESTONE";
+  startDate: Date | string;
+  endDate: Date | string;
+  status: "TODO" | "IN_PROGRESS" | "TO_REVIEW" | "BLOCKED" | "DONE";
+  position: number;
+  phase: { id: string; name: string } | null;
+}, today: Date) {
+  const end = date(input.endDate)!;
+  return {
+    id: input.id,
+    nombre: input.name,
+    descripcion: input.description,
+    tipo: input.type,
+    estado: input.status,
+    inicio: date(input.startDate)!,
+    fin: end,
+    orden: input.position,
+    fase: input.phase
+      ? { id: input.phase.id, nombre: input.phase.name }
+      : null,
+    atrasada:
+      input.type === "TASK" && input.status !== "DONE" && end < date(today)!,
   };
 }

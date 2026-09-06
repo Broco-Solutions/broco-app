@@ -93,7 +93,7 @@ function transformToolsListBody(body: string, contentType: string | null) {
 /**
  * The installed MCP SDK serializes tool `_meta` but not top-level
  * `securitySchemes`. ChatGPT reads the standard top-level field from the
- * `tools/list` response, so add it only to the four registered tools.
+ * `tools/list` response, so add it only to the registered tools.
  */
 async function exposeToolSecuritySchemes(
   request: Request,

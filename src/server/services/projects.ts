@@ -219,6 +219,284 @@ export async function listProjectsForMcp(input: {
   });
 }
 
+export async function getProjectDetailForMcp(id: string, today: Date) {
+  const project = await prisma.project.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      name: true,
+      isActive: true,
+      startDate: true,
+      endDate: true,
+      goLiveDate: true,
+      oneTimeOriginalAmount: true,
+      oneTimeCurrency: true,
+      oneTimeExchangeRate: true,
+      oneTimeAmountUsd: true,
+      monthlyRecurringOriginalAmount: true,
+      monthlyRecurringCurrency: true,
+      monthlyRecurringExchangeRate: true,
+      monthlyRecurringAmountUsd: true,
+      client: { select: { id: true, name: true } },
+    },
+  });
+  if (!project) return null;
+
+  const [
+    incomeGroups,
+    incomeOverdue,
+    expenseGroups,
+    expenseOverdue,
+    incomeTypes,
+  ] = await Promise.all([
+    prisma.income.groupBy({
+      by: ["status", "typeId"],
+      where: { projectId: id },
+      _sum: { amountUsd: true },
+      _count: true,
+    }),
+    prisma.income.aggregate({
+      where: { projectId: id, status: "PENDING", dueDate: { lt: today } },
+      _sum: { amountUsd: true },
+      _count: true,
+    }),
+    prisma.expense.groupBy({
+      by: ["status"],
+      where: { projectId: id },
+      _sum: { amountUsd: true },
+      _count: true,
+    }),
+    prisma.expense.aggregate({
+      where: { projectId: id, status: "PENDING", dueDate: { lt: today } },
+      _sum: { amountUsd: true },
+      _count: true,
+    }),
+    prisma.incomeType.findMany({
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
+  ]);
+
+  const amountAggregate = (
+    groups: Array<{
+      _sum: { amountUsd: Prisma.Decimal | null };
+      _count: number;
+    }>,
+  ) => {
+    const count = groups.reduce((sum, group) => sum + group._count, 0);
+    const amountUsd = groups.reduce(
+      (sum, group) => sum.plus(group._sum.amountUsd ?? 0),
+      new D(0),
+    );
+    return { _sum: { amountUsd: count === 0 ? null : amountUsd }, _count: count };
+  };
+  const incomeByType = incomeTypes.map((type) => ({
+    typeId: type.id,
+    ...amountAggregate(incomeGroups.filter((group) => group.typeId === type.id)),
+  })).filter((group) => group._count > 0);
+
+  return {
+    project,
+    incomeAll: amountAggregate(incomeGroups),
+    incomePaid: amountAggregate(
+      incomeGroups.filter((group) => group.status === "PAID"),
+    ),
+    incomePending: amountAggregate(
+      incomeGroups.filter((group) => group.status === "PENDING"),
+    ),
+    incomeOverdue,
+    expenseAll: amountAggregate(expenseGroups),
+    expensePaid: amountAggregate(
+      expenseGroups.filter((group) => group.status === "PAID"),
+    ),
+    expensePending: amountAggregate(
+      expenseGroups.filter((group) => group.status === "PENDING"),
+    ),
+    expenseOverdue,
+    incomeByType,
+    incomeTypes,
+  };
+}
+
+export async function getProjectPlanningForMcp(input: {
+  projectId: string;
+  today: Date;
+  skip: number;
+  take: number;
+  phaseTake: number;
+}) {
+  const project = await prisma.project.findUnique({
+    where: { id: input.projectId },
+    select: {
+      id: true,
+      name: true,
+      isActive: true,
+      startDate: true,
+      endDate: true,
+      goLiveDate: true,
+      client: { select: { id: true, name: true } },
+      phases: {
+        select: { id: true, name: true, position: true },
+        orderBy: [{ position: "asc" }, { id: "asc" }],
+        take: input.phaseTake,
+      },
+      tasks: {
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          type: true,
+          startDate: true,
+          endDate: true,
+          status: true,
+          position: true,
+          phase: { select: { id: true, name: true } },
+        },
+        orderBy: [{ position: "asc" }, { startDate: "asc" }, { id: "asc" }],
+        skip: input.skip,
+        take: input.take,
+      },
+    },
+  });
+  if (!project) return null;
+
+  const [taskGroups, overdueTasks] = await Promise.all([
+    prisma.projectTask.groupBy({
+      by: ["type", "status"],
+      where: { projectId: input.projectId },
+      _count: true,
+    }),
+    prisma.projectTask.count({
+      where: {
+        projectId: input.projectId,
+        type: "TASK",
+        status: { not: "DONE" },
+        endDate: { lt: input.today },
+      },
+    }),
+  ]);
+
+  return { project, taskGroups, overdueTasks };
+}
+
+export async function listProjectSummariesForMcp(input: {
+  search?: string;
+  clientId?: string;
+  isActive?: boolean;
+  today: Date;
+  skip: number;
+  take: number;
+}) {
+  const projects = await prisma.project.findMany({
+    where: {
+      ...(input.search
+        ? { name: { contains: input.search, mode: "insensitive" as const } }
+        : {}),
+      ...(input.clientId ? { clientId: input.clientId } : {}),
+      ...(input.isActive === undefined ? {} : { isActive: input.isActive }),
+    },
+    select: {
+      id: true,
+      name: true,
+      isActive: true,
+      startDate: true,
+      endDate: true,
+      goLiveDate: true,
+      oneTimeOriginalAmount: true,
+      oneTimeCurrency: true,
+      oneTimeExchangeRate: true,
+      oneTimeAmountUsd: true,
+      monthlyRecurringOriginalAmount: true,
+      monthlyRecurringCurrency: true,
+      monthlyRecurringExchangeRate: true,
+      monthlyRecurringAmountUsd: true,
+      client: { select: { id: true, name: true } },
+    },
+    orderBy: [
+      { isActive: "desc" },
+      { client: { name: "asc" } },
+      { name: "asc" },
+      { id: "asc" },
+    ],
+    skip: input.skip,
+    take: input.take,
+  });
+
+  const projectIds = projects.map((project) => project.id);
+  if (projectIds.length === 0) return [];
+
+  const [
+    incomeGroups,
+    expenseGroups,
+    overdueIncomeGroups,
+    overdueExpenseGroups,
+    taskGroups,
+    overdueTaskGroups,
+  ] =
+    await Promise.all([
+      prisma.income.groupBy({
+        by: ["projectId", "status"],
+        where: { projectId: { in: projectIds } },
+        _sum: { amountUsd: true },
+        _count: true,
+      }),
+      prisma.expense.groupBy({
+        by: ["projectId", "status"],
+        where: { projectId: { in: projectIds } },
+        _sum: { amountUsd: true },
+        _count: true,
+      }),
+      prisma.income.groupBy({
+        by: ["projectId"],
+        where: {
+          projectId: { in: projectIds },
+          status: "PENDING",
+          dueDate: { lt: input.today },
+        },
+        _sum: { amountUsd: true },
+        _count: true,
+      }),
+      prisma.expense.groupBy({
+        by: ["projectId"],
+        where: {
+          projectId: { in: projectIds },
+          status: "PENDING",
+          dueDate: { lt: input.today },
+        },
+        _sum: { amountUsd: true },
+        _count: true,
+      }),
+      prisma.projectTask.groupBy({
+        by: ["projectId", "type", "status"],
+        where: { projectId: { in: projectIds } },
+        _count: true,
+      }),
+      prisma.projectTask.groupBy({
+        by: ["projectId"],
+        where: {
+          projectId: { in: projectIds },
+          type: "TASK",
+          status: { not: "DONE" },
+          endDate: { lt: input.today },
+        },
+        _count: true,
+      }),
+    ]);
+
+  return projects.map((project) => ({
+    project,
+    incomeGroups: incomeGroups.filter((group) => group.projectId === project.id),
+    expenseGroups: expenseGroups.filter((group) => group.projectId === project.id),
+    overdueIncome:
+      overdueIncomeGroups.find((group) => group.projectId === project.id) ?? null,
+    overdueExpense:
+      overdueExpenseGroups.find((group) => group.projectId === project.id) ?? null,
+    taskGroups: taskGroups.filter((group) => group.projectId === project.id),
+    overdueTasks:
+      overdueTaskGroups.find((group) => group.projectId === project.id)?._count ?? 0,
+  }));
+}
+
 export async function getProject(id: string) {
   const project = await prisma.project.findUnique({
     where: { id },

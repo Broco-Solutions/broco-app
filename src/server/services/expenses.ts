@@ -53,28 +53,90 @@ export async function listExpenses(filters?: { status?: string; type?: string; c
   });
 }
 
+export async function listExpensesForMcp(input: {
+  from?: Date;
+  to?: Date;
+  projectId?: string;
+  categoryName?: string;
+  status?: "PAID" | "PENDING" | "OVERDUE";
+  type?: "FIXED" | "VARIABLE";
+  today: Date;
+  skip: number;
+  take: number;
+}) {
+  const where: Prisma.ExpenseWhereInput = {
+    ...(input.projectId ? { projectId: input.projectId } : {}),
+    ...(input.categoryName
+      ? {
+          category: {
+            name: { equals: input.categoryName, mode: "insensitive" as const },
+          },
+        }
+      : {}),
+    ...(input.type ? { type: input.type } : {}),
+  };
+
+  if (input.status === "PAID") {
+    where.status = "PAID";
+    if (input.from && input.to) {
+      where.effectiveDate = { gte: input.from, lte: input.to };
+    }
+  } else if (input.status === "PENDING" || input.status === "OVERDUE") {
+    where.status = "PENDING";
+    where.dueDate = {
+      ...(input.from ? { gte: input.from } : {}),
+      ...(input.to ? { lte: input.to } : {}),
+      ...(input.status === "OVERDUE" ? { lt: input.today } : {}),
+    };
+  } else if (input.from && input.to) {
+    where.OR = [
+      {
+        status: "PAID",
+        effectiveDate: { gte: input.from, lte: input.to },
+      },
+      {
+        status: "PENDING",
+        dueDate: { gte: input.from, lte: input.to },
+      },
+    ];
+  }
+
+  return prisma.expense.findMany({
+    where,
+    select: {
+      id: true,
+      concept: true,
+      type: true,
+      status: true,
+      amountUsd: true,
+      amountArs: true,
+      exchangeRate: true,
+      dueDate: true,
+      effectiveDate: true,
+      category: { select: { id: true, name: true } },
+      project: { select: { id: true, name: true } },
+    },
+    orderBy: [
+      { status: "asc" },
+      { dueDate: "asc" },
+      { effectiveDate: "desc" },
+      { id: "asc" },
+    ],
+    skip: input.skip,
+    take: input.take,
+  });
+}
+
 export async function listPendingExpensesForMcp(input: {
   from: Date;
   to: Date;
   skip: number;
   take: number;
 }) {
-  return prisma.expense.findMany({
-    where: {
-      status: "PENDING",
-      dueDate: { gte: input.from, lte: input.to },
-    },
-    select: {
-      id: true,
-      concept: true,
-      dueDate: true,
-      amountUsd: true,
-      category: { select: { name: true } },
-      project: { select: { name: true } },
-    },
-    orderBy: [{ dueDate: "asc" }, { id: "asc" }],
-    skip: input.skip,
-    take: input.take,
+  return listExpensesForMcp({
+    ...input,
+    status: "PENDING",
+    today: input.from,
   });
 }
 

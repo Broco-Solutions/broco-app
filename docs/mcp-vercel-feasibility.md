@@ -83,16 +83,21 @@ Fuentes actuales:
 - [Scopes de APIs Auth0](https://auth0.com/docs/get-started/apis/scopes/api-scopes)
 - [RFC 9728](https://www.rfc-editor.org/rfc/rfc9728)
 
-El servidor registra solo cuatro herramientas de lectura:
+El servidor registra nueve herramientas de lectura:
 
 | Herramienta | Resultado | Límites |
 |---|---|---|
 | `resumen_financiero` | Totales agregados cobrados, pagados, pendientes y vencidos | Rango de hasta 366 días |
 | `consultar_clientes` | ID, nombre y cantidad de proyectos | 1–50 filas por página; búsqueda de hasta 100 caracteres |
 | `consultar_proyectos` | Identidad, cliente, estado, fechas, importes acordados y conteos | 1–50 filas por página; filtros estrictos |
-| `flujo_fondos` | Ingresos y gastos pendientes mínimos | Rango de hasta 366 días y 1–50 filas por lado/página |
+| `flujo_fondos` | Ingresos y gastos pendientes con tipo/categoría, estado, vencimiento, fecha efectiva, moneda original, USD, cliente y proyecto disponibles | Rango de hasta 366 días y 1–50 filas por lado/página |
+| `consultar_ingresos` | Movimientos individuales y sus relaciones de negocio | Filtros por fechas, proyecto, cliente, estado y tipo; 1–50 filas por página |
+| `consultar_gastos` | Movimientos individuales y sus relaciones de negocio | Filtros por fechas, proyecto, categoría, estado y tipo; 1–50 filas por página |
+| `detalle_proyecto` | Contrato, resumen financiero, ingresos por tipo y movimientos del proyecto | UUID estricto y hasta 50 movimientos por lado/página |
+| `planificacion_proyecto` | Fases, tareas e hitos con fechas, estado, descripción, orden y avance derivado | UUID estricto y 1–50 tareas por página |
+| `resumen_proyectos` | Portafolio con contrato, totales financieros y avance derivado | 1–50 proyectos por página; filtros estrictos |
 
-Las fechas deben existir en el calendario y usar `YYYY-MM-DD`. No se exponen notas, contactos, enlaces privados, contraseñas, hashes, cookies, tokens, secretos ni URLs de conexión. No hay SQL, Prisma genérico, ejecución arbitraria ni herramientas de mutación.
+Las fechas deben existir en el calendario y usar `YYYY-MM-DD`. Los filtros financieros admiten como máximo 366 días. El estado vencido se deriva únicamente para movimientos pendientes cuya fecha de vencimiento ya pasó; el avance se calcula sobre tareas y excluye hitos. No se exponen notas de clientes, proyectos o movimientos, contactos, enlaces privados, visibilidad del portal, credenciales de acceso, contraseñas, hashes, cookies, tokens, secretos ni URLs de conexión. El modelo no contiene responsables, horas, prioridades, dependencias ni comentarios de tareas, por lo que esos datos no se inventan. No hay SQL, Prisma genérico, ejecución arbitraria ni herramientas de mutación.
 
 ## 5. Flags y configuración
 
