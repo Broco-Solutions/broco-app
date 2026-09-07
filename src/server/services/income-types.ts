@@ -35,6 +35,12 @@ export async function createIncomeType(input: IncomeTypeInput) {
 
 export async function updateIncomeType(id: string, input: IncomeTypeInput) {
   const data = incomeTypeSchema.parse(input);
+  if (data.requiresProject) {
+    const unlinked = await prisma.income.count({ where: { typeId: id, projectId: null } });
+    if (unlinked > 0) {
+      throw new Error("No se puede exigir proyecto mientras existan ingresos sin proyecto.");
+    }
+  }
   try {
     const t = await prisma.incomeType.update({
       where: { id },

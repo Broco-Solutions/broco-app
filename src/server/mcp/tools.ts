@@ -33,6 +33,7 @@ import {
   listProjectSummariesForMcp,
   listProjectsForMcp,
 } from "@/server/services/projects";
+import { registerWriteTools, WRITE_MCP_TOOL_NAMES } from "@/server/mcp/write-tools";
 
 export const MCP_TOOL_NAMES = [
   "resumen_financiero",
@@ -49,6 +50,8 @@ export const MCP_TOOL_NAMES = [
 export const MCP_TOOL_SECURITY_SCHEMES = [
   { type: "oauth2", scopes: [MCP_REQUIRED_SCOPE] },
 ] as const;
+
+export { WRITE_MCP_TOOL_NAMES };
 
 const DAY_MS = 86_400_000;
 
@@ -154,6 +157,7 @@ export const projectsInputSchema = z
   .strict();
 export const cashFlowInputSchema = withValidRange(pageFields);
 export const incomesInputSchema = withOptionalRange({
+  incomeId: z.string().uuid().optional(),
   projectId: z.string().uuid().optional(),
   clientId: z.string().uuid().optional(),
   estado: z.enum(["PAID", "PENDING", "OVERDUE"]).optional(),
@@ -161,6 +165,7 @@ export const incomesInputSchema = withOptionalRange({
   ...pageFields,
 });
 export const expensesInputSchema = withOptionalRange({
+  expenseId: z.string().uuid().optional(),
   projectId: z.string().uuid().optional(),
   categoria: z.string().trim().min(1).max(100).optional(),
   estado: z.enum(["PAID", "PENDING", "OVERDUE"]).optional(),
@@ -362,6 +367,7 @@ const planningTaskSchema = z
     orden: z.number().int(),
     fase: z.object({ id: z.string(), nombre: z.string() }).strict().nullable(),
     atrasada: z.boolean(),
+    clientVisible: z.boolean(),
   })
   .strict();
 const planningSummarySchema = z
@@ -609,6 +615,7 @@ export async function getIncomes(
       ? { from: utcDate(input.desde), to: utcDate(input.hasta) }
       : {}),
     projectId: input.projectId,
+    incomeId: input.incomeId,
     clientId: input.clientId,
     status: input.estado,
     typeName: input.tipo,
@@ -636,6 +643,7 @@ export async function getExpenses(
       ? { from: utcDate(input.desde), to: utcDate(input.hasta) }
       : {}),
     projectId: input.projectId,
+    expenseId: input.expenseId,
     categoryName: input.categoria,
     status: input.estado,
     type: input.tipo,
@@ -885,6 +893,7 @@ function result(data: Record<string, unknown>) {
 export function registerTools(
   server: McpServer,
   services: McpReadServices = defaultServices,
+  options: { writeEnabled?: boolean } = {},
 ) {
   server.registerTool(
     "resumen_financiero",
@@ -1002,4 +1011,6 @@ export function registerTools(
     },
     async (input) => result(await getProjectSummaries(input, services)),
   );
+
+  if (options.writeEnabled) registerWriteTools(server);
 }

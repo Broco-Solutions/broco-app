@@ -71,6 +71,20 @@ async function validateType(typeId: string, projectId?: string | null) {
   return incomeType;
 }
 
+async function resolveIncomeClient(projectId: string | null | undefined, clientId: string | null | undefined) {
+  if (projectId) {
+    const project = await prisma.project.findUnique({ where: { id: projectId }, select: { clientId: true } });
+    if (!project) throw new Error("Proyecto no encontrado.");
+    if (clientId && clientId !== project.clientId) throw new Error("El cliente no coincide con el proyecto.");
+    return project.clientId;
+  }
+  if (clientId) {
+    const client = await prisma.client.findUnique({ where: { id: clientId }, select: { id: true } });
+    if (!client) throw new Error("Cliente no encontrado.");
+  }
+  return clientId ?? null;
+}
+
 function validateDates(data: IncomeInput) {
   if (data.status === "PENDING" && !data.dueDate) {
     throw new Error("La fecha de vencimiento es obligatoria para ingresos pendientes.");
@@ -116,6 +130,7 @@ export async function listIncomes(filters?: {
 export type McpFinancialStatusFilter = "PAID" | "PENDING" | "OVERDUE";
 
 export async function listIncomesForMcp(input: {
+  incomeId?: string;
   from?: Date;
   to?: Date;
   projectId?: string;
@@ -127,6 +142,7 @@ export async function listIncomesForMcp(input: {
   take: number;
 }) {
   const where: Prisma.IncomeWhereInput = {
+    ...(input.incomeId ? { id: input.incomeId } : {}),
     ...(input.projectId ? { projectId: input.projectId } : {}),
     ...(input.clientId ? { clientId: input.clientId } : {}),
     ...(input.typeName
@@ -189,6 +205,34 @@ export async function listIncomesForMcp(input: {
   });
 }
 
+export type IncomeMcpPatch = Partial<Pick<IncomeInput,
+  "projectId" | "clientId" | "typeId" | "concept" | "status" |
+  "amountUsd" | "amountArs" | "exchangeRate" | "dueDate" | "effectiveDate"
+>>;
+
+/** Applies a controlled partial update while preserving UI-only notes. */
+export async function patchIncomeForMcp(id: string, patch: IncomeMcpPatch) {
+  const existing = await getIncome(id);
+  const next: IncomeInput = {
+    projectId: patch.projectId === undefined ? existing.projectId : patch.projectId,
+    clientId: patch.clientId === undefined ? existing.clientId : patch.clientId,
+    typeId: patch.typeId ?? existing.typeId,
+    concept: patch.concept ?? existing.concept,
+    notes: existing.notes,
+    status: patch.status ?? existing.status,
+    amountUsd: patch.amountUsd === undefined ? Number(existing.amountUsd) : patch.amountUsd,
+    amountArs: patch.amountArs === undefined ? (existing.amountArs === null ? null : Number(existing.amountArs)) : patch.amountArs,
+    exchangeRate: patch.exchangeRate === undefined ? (existing.exchangeRate === null ? null : Number(existing.exchangeRate)) : patch.exchangeRate,
+    dueDate: patch.dueDate === undefined ? (existing.dueDate?.toISOString().slice(0, 10) ?? null) : patch.dueDate,
+    effectiveDate: patch.effectiveDate === undefined ? (existing.effectiveDate?.toISOString().slice(0, 10) ?? null) : patch.effectiveDate,
+  };
+  return updateIncome(id, next);
+}
+
+export async function markIncomePaidForMcp(id: string, effectiveDate: string) {
+  return patchIncomeForMcp(id, { status: "PAID", effectiveDate });
+}
+
 export async function listPendingIncomesForMcp(input: {
   from: Date;
   to: Date;
@@ -224,15 +268,7 @@ export async function createIncome(input: IncomeInput) {
   await validateType(data.typeId, data.projectId);
 
   // Resolve client from project
-  let clientId = data.clientId ?? null;
-  if (data.projectId) {
-    const project = await prisma.project.findUnique({
-      where: { id: data.projectId },
-      select: { clientId: true },
-    });
-    if (!project) throw new Error("Proyecto no encontrado.");
-    clientId = project.clientId;
-  }
+  const clientId = await resolveIncomeClient(data.projectId, data.clientId);
 
   validateDates(data);
 
@@ -259,15 +295,7 @@ export async function updateIncome(id: string, input: IncomeInput) {
   const data = incomeSchema.parse(input);
   await validateType(data.typeId, data.projectId);
 
-  let clientId = data.clientId ?? null;
-  if (data.projectId) {
-    const project = await prisma.project.findUnique({
-      where: { id: data.projectId },
-      select: { clientId: true },
-    });
-    if (!project) throw new Error("Proyecto no encontrado.");
-    clientId = project.clientId;
-  }
+  const clientId = await resolveIncomeClient(data.projectId, data.clientId);
 
   validateDates(data);
 

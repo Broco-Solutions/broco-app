@@ -23,6 +23,12 @@ export async function listPhases(projectId: string) {
   });
 }
 
+export async function getPhase(id: string) {
+  const phase = await prisma.projectPhase.findUnique({ where: { id } });
+  if (!phase) throw new Error("Fase no encontrada.");
+  return phase;
+}
+
 async function assertProject(projectId: string) {
   const project = await prisma.project.findUnique({
     where: { id: projectId },
@@ -82,7 +88,24 @@ export async function deletePhase(id: string) {
   });
   if (!existing) throw new Error("Fase no encontrada.");
 
+  const affectedTasks = await prisma.projectTask.count({ where: { phaseId: id } });
   await prisma.projectPhase.delete({ where: { id } });
   revalidatePath(`/projects/${existing.projectId}`);
-  return { id };
+  return { id, projectId: existing.projectId, affectedTasks };
+}
+
+export async function reorderProjectPhases(projectId: string, orderedPhaseIds: string[]) {
+  await assertProject(projectId);
+  const phases = await prisma.projectPhase.findMany({
+    where: { projectId }, select: { id: true },
+  });
+  const ids = new Set(orderedPhaseIds);
+  if (ids.size !== orderedPhaseIds.length) throw new Error("No se permiten identificadores repetidos.");
+  if (phases.length !== orderedPhaseIds.length || phases.some((phase) => !ids.has(phase.id))) {
+    throw new Error("La lista de fases está incompleta.");
+  }
+  await prisma.$transaction(orderedPhaseIds.map((id, position) =>
+    prisma.projectPhase.update({ where: { id }, data: { position } }),
+  ));
+  revalidatePath(`/projects/${projectId}`);
 }

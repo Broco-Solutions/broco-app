@@ -166,7 +166,7 @@ describe("Protected Resource Metadata", () => {
     await expect(response.json()).resolves.toMatchObject({
       resource: enabled.resourceUrl,
       authorization_servers: [enabled.auth.issuer],
-      scopes_supported: ["mcp:read"],
+      scopes_supported: ["mcp:read", "mcp:write"],
       bearer_methods_supported: ["header"],
     });
     expect(routes.OPTIONS().status).toBe(204);

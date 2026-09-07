@@ -350,6 +350,7 @@ export async function getProjectPlanningForMcp(input: {
           endDate: true,
           status: true,
           position: true,
+          clientVisible: true,
           phase: { select: { id: true, name: true } },
         },
         orderBy: [{ position: "asc" }, { startDate: "asc" }, { id: "asc" }],

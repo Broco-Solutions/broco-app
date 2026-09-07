@@ -398,6 +398,7 @@ describe("límites y DTOs MCP", () => {
             endDate: new Date("2020-01-02T00:00:00Z"),
             status: "IN_PROGRESS",
             position: 0,
+            clientVisible: false,
             phase: { id: "f1", name: "Fase" },
           },
         ],

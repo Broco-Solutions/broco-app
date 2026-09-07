@@ -296,6 +296,7 @@ export function toPlanningTaskDto(input: {
   endDate: Date | string;
   status: "TODO" | "IN_PROGRESS" | "TO_REVIEW" | "BLOCKED" | "DONE";
   position: number;
+  clientVisible?: boolean;
   phase: { id: string; name: string } | null;
 }, today: Date) {
   const end = date(input.endDate)!;
@@ -308,6 +309,7 @@ export function toPlanningTaskDto(input: {
     inicio: date(input.startDate)!,
     fin: end,
     orden: input.position,
+    clientVisible: input.clientVisible ?? false,
     fase: input.phase
       ? { id: input.phase.id, nombre: input.phase.name }
       : null,

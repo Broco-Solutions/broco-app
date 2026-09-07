@@ -38,6 +38,16 @@ function computeMoney(input: {
   throw new Error("Ingresa monto USD, o ARS + tipo de cambio.");
 }
 
+async function validateExpenseReferences(categoryId: string, projectId: string | null | undefined) {
+  const category = await prisma.expenseCategory.findUnique({ where: { id: categoryId }, select: { isActive: true } });
+  if (!category) throw new Error("Categoría no encontrada.");
+  if (!category.isActive) throw new Error("La categoría seleccionada está inactiva.");
+  if (projectId) {
+    const project = await prisma.project.findUnique({ where: { id: projectId }, select: { id: true } });
+    if (!project) throw new Error("Proyecto no encontrado.");
+  }
+}
+
 export async function listExpenses(filters?: { status?: string; type?: string; categoryId?: string; projectId?: string }) {
   const where: Record<string, unknown> = {};
   if (filters?.type) where.type = filters.type;
@@ -54,6 +64,7 @@ export async function listExpenses(filters?: { status?: string; type?: string; c
 }
 
 export async function listExpensesForMcp(input: {
+  expenseId?: string;
   from?: Date;
   to?: Date;
   projectId?: string;
@@ -65,6 +76,7 @@ export async function listExpensesForMcp(input: {
   take: number;
 }) {
   const where: Prisma.ExpenseWhereInput = {
+    ...(input.expenseId ? { id: input.expenseId } : {}),
     ...(input.projectId ? { projectId: input.projectId } : {}),
     ...(input.categoryName
       ? {
@@ -127,6 +139,34 @@ export async function listExpensesForMcp(input: {
   });
 }
 
+export type ExpenseMcpPatch = Partial<Pick<ExpenseInput,
+  "expenseCategoryId" | "projectId" | "type" | "concept" | "status" |
+  "amountUsd" | "amountArs" | "exchangeRate" | "dueDate" | "effectiveDate"
+>>;
+
+/** Applies a controlled partial update while preserving UI-only notes. */
+export async function patchExpenseForMcp(id: string, patch: ExpenseMcpPatch) {
+  const existing = await getExpense(id);
+  const next: ExpenseInput = {
+    expenseCategoryId: patch.expenseCategoryId ?? existing.expenseCategoryId,
+    projectId: patch.projectId === undefined ? existing.projectId : patch.projectId,
+    type: patch.type ?? existing.type,
+    concept: patch.concept ?? existing.concept,
+    notes: existing.notes,
+    status: patch.status ?? existing.status,
+    amountUsd: patch.amountUsd === undefined ? Number(existing.amountUsd) : patch.amountUsd,
+    amountArs: patch.amountArs === undefined ? (existing.amountArs === null ? null : Number(existing.amountArs)) : patch.amountArs,
+    exchangeRate: patch.exchangeRate === undefined ? (existing.exchangeRate === null ? null : Number(existing.exchangeRate)) : patch.exchangeRate,
+    dueDate: patch.dueDate === undefined ? (existing.dueDate?.toISOString().slice(0, 10) ?? null) : patch.dueDate,
+    effectiveDate: patch.effectiveDate === undefined ? (existing.effectiveDate?.toISOString().slice(0, 10) ?? null) : patch.effectiveDate,
+  };
+  return updateExpense(id, next);
+}
+
+export async function markExpensePaidForMcp(id: string, effectiveDate: string) {
+  return patchExpenseForMcp(id, { status: "PAID", effectiveDate });
+}
+
 export async function listPendingExpensesForMcp(input: {
   from: Date;
   to: Date;
@@ -148,6 +188,7 @@ export async function getExpense(id: string) {
 
 export async function createExpense(input: ExpenseInput) {
   const data = expenseSchema.parse(input);
+  await validateExpenseReferences(data.expenseCategoryId, data.projectId);
   if (data.status === "PENDING" && !data.dueDate) throw new Error("La fecha de vencimiento es obligatoria.");
   if (data.status === "PAID" && !data.effectiveDate) throw new Error("La fecha de pago es obligatoria.");
   const money = computeMoney(data);
@@ -166,6 +207,7 @@ export async function createExpense(input: ExpenseInput) {
 
 export async function updateExpense(id: string, input: ExpenseInput) {
   const data = expenseSchema.parse(input);
+  await validateExpenseReferences(data.expenseCategoryId, data.projectId);
   if (data.status === "PENDING" && !data.dueDate) throw new Error("La fecha de vencimiento es obligatoria.");
   if (data.status === "PAID" && !data.effectiveDate) throw new Error("La fecha de pago es obligatoria.");
   const money = computeMoney(data);

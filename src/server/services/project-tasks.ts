@@ -81,9 +81,17 @@ export async function listTasks(projectId: string) {
   });
 }
 
-async function nextPosition(projectId: string) {
+export async function getTask(id: string) {
+  const task = await prisma.projectTask.findUnique({
+    where: { id }, include: { phase: { select: { id: true, name: true } } },
+  });
+  if (!task) throw new Error("Tarea no encontrada.");
+  return task;
+}
+
+async function nextPosition(projectId: string, phaseId: string | null) {
   const agg = await prisma.projectTask.aggregate({
-    where: { projectId },
+    where: { projectId, phaseId },
     _max: { position: true },
   });
   return (agg._max.position ?? -1) + 1;
@@ -97,7 +105,7 @@ export async function createTask(input: TaskInput) {
   const type = data.type ?? "TASK";
   const status = data.status ?? "TODO";
   const dates = resolveTaskDates(type, data.startDate, data.endDate);
-  const position = data.position ?? (await nextPosition(data.projectId));
+  const position = data.position ?? (await nextPosition(data.projectId, data.phaseId ?? null));
 
   const task = await prisma.projectTask.create({
     data: {
@@ -177,7 +185,14 @@ export async function setTaskPhase(id: string, phaseId: string | null) {
   if (!existing) throw new Error("Tarea no encontrada.");
   if (phaseId) await assertPhaseBelongsToProject(phaseId, existing.projectId);
 
-  const task = await prisma.projectTask.update({ where: { id }, data: { phaseId } });
+  const task = await prisma.$transaction(async (tx) => {
+    const max = await tx.projectTask.aggregate({
+      where: { projectId: existing.projectId, phaseId }, _max: { position: true },
+    });
+    return tx.projectTask.update({
+      where: { id }, data: { phaseId, position: (max._max.position ?? -1) + 1 },
+    });
+  });
   revalidatePath(`/projects/${existing.projectId}`);
   return task;
 }

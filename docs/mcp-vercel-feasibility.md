@@ -107,6 +107,7 @@ Configuración prevista, con marcadores y sin valores reales:
 
 ```text
 BROCO_MCP_ENABLED=false
+BROCO_MCP_WRITE_ENABLED=false
 BROCO_MCP_KILL=true
 BROCO_MCP_AUTH0_ISSUER=https://TENANT_REGION.auth0.com/
 BROCO_MCP_RESOURCE_URL=https://APP_DOMAIN/api/mcp
@@ -142,6 +143,8 @@ Los nombres exactos de las pantallas pueden variar. Antes de habilitar producci�
 5. **Configurar la allowlist.** La opción preferida es copiar el claim inmutable `sub` de cada usuario autorizado a `BROCO_MCP_ALLOWED_SUBJECTS`. Si se necesita autorizar por email, agregar con una Auth0 Post Login Action dos claims personalizados y namespaced: email y email verificado. Configurar esos nombres en las variables correspondientes. El servidor ignora el email cuando su claim de verificación no es verdadero.
 
 6. **Configurar issuer y conector.** Copiar el `issuer` de discovery de Auth0, con HTTPS y slash final, a `BROCO_MCP_AUTH0_ISSUER`. En ChatGPT, registrar `https://APP_DOMAIN/api/mcp` y verificar que el consentimiento solicite solo `mcp:read`. No copiar tokens ni secretos al repositorio.
+
+La escritura MCP permanece desactivada salvo que `BROCO_MCP_WRITE_ENABLED=true` esté presente en el deployment. Con el flag apagado sólo se registran las nueve herramientas de lectura. Las herramientas de escritura exigen además el scope `mcp:write`; no habilitar el flag hasta validar el consentimiento y los controles de confirmación en el cliente MCP.
 
 Si el tenant gratuito no ofrece CIMD, detener la habilitación y revisar el plan o registrar el cliente público manualmente con los mismos metadatos y el redirect que muestre ChatGPT para esa conexión. No sustituir este flujo por la cookie web, `APP_PASSWORD`, una API key compartida ni credenciales existentes.
 

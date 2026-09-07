@@ -14,7 +14,9 @@ import {
   MCP_TOOL_NAMES,
   MCP_TOOL_SECURITY_SCHEMES,
   registerTools,
+  WRITE_MCP_TOOL_NAMES,
 } from "@/server/mcp/tools";
+import { MCP_WRITE_SCOPE } from "@/lib/mcp/config";
 
 type ProtocolHandler = (request: Request) => Response | Promise<Response>;
 
@@ -54,12 +56,17 @@ function addToolSecuritySchemes(payload: unknown) {
     result: {
       ...payload.result,
       tools: tools.map((tool) => {
-        if (!isRecord(tool) || !MCP_TOOL_NAMES.includes(tool.name as never)) {
+        if (!isRecord(tool)) {
           return tool;
         }
+        const isRead = MCP_TOOL_NAMES.includes(tool.name as never);
+        const isWrite = WRITE_MCP_TOOL_NAMES.includes(tool.name as never);
+        if (!isRead && !isWrite) return tool;
         return {
           ...tool,
-          securitySchemes: MCP_TOOL_SECURITY_SCHEMES,
+          securitySchemes: isWrite
+            ? [{ type: "oauth2", scopes: ["mcp:read", MCP_WRITE_SCOPE] }]
+            : MCP_TOOL_SECURITY_SCHEMES,
         };
       }),
     },
@@ -123,20 +130,23 @@ async function exposeToolSecuritySchemes(
   }
 }
 
-export function createMcpProtocolHandler(): ProtocolHandler {
+export function createMcpProtocolHandler(writeEnabled = false): ProtocolHandler {
   const handler = createMcpHandler(
-    (server) => registerTools(server),
+    (server) => registerTools(server, undefined, { writeEnabled }),
     {
-      serverInfo: { name: "broco-finance-readonly", version: "1.0.0" },
+      serverInfo: { name: "broco-finance-mcp", version: "1.1.0" },
       instructions:
-        "Consultas financieras privadas y exclusivamente de lectura. Respeta los rangos y límites declarados por cada herramienta.",
+        writeEnabled
+          ? "Gestión privada de Broco: consultas y cambios controlados. Respeta scopes, confirmaciones y límites."
+          : "Consultas financieras privadas y exclusivamente de lectura. Respeta los rangos y límites declarados por cada herramienta.",
       maxSubscriptions: 0,
     },
   );
   return (request) => exposeToolSecuritySchemes(request, handler);
 }
 
-const protocolHandler = createMcpProtocolHandler();
+const readProtocolHandler = createMcpProtocolHandler(false);
+const writeProtocolHandler = createMcpProtocolHandler(true);
 
 let cachedVerifier: { key: string; verifier: TokenVerifier } | undefined;
 
@@ -161,7 +171,7 @@ function getTokenVerifier(config: AuthConfig) {
 
 const defaultDependencies: McpHttpDependencies = {
   readConfig: readMcpConfig,
-  protocolHandler,
+  protocolHandler: readProtocolHandler,
   tokenVerifier: getTokenVerifier,
 };
 
@@ -183,8 +193,11 @@ export function createMcpHttpHandler(
     }
     if (config.status === "misconfigured") return unavailable(503);
 
+    const selectedProtocol = dependencies === defaultDependencies && config.status === "ok" && config.writeEnabled
+      ? writeProtocolHandler
+      : dependencies.protocolHandler;
     const authenticatedHandler = withMcpAuth(
-      dependencies.protocolHandler,
+      selectedProtocol,
       dependencies.tokenVerifier(config.auth),
       {
         required: true,
@@ -228,7 +241,7 @@ export function createProtectedResourceMetadataHandlers(
         resourceUrl: config.resourceUrl,
         additionalMetadata: {
           resource_name: "Broco Finance MCP (solo lectura)",
-          scopes_supported: [config.requiredScope],
+          scopes_supported: [config.requiredScope, MCP_WRITE_SCOPE],
           bearer_methods_supported: ["header"],
         },
       });

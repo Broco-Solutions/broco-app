@@ -4,6 +4,7 @@ import { readMcpConfig } from "@/lib/mcp/config";
 const MCP_ENV_KEYS = [
   "BROCO_MCP_KILL",
   "BROCO_MCP_ENABLED",
+  "BROCO_MCP_WRITE_ENABLED",
   "BROCO_MCP_AUTH0_ISSUER",
   "BROCO_MCP_RESOURCE_URL",
   "BROCO_MCP_AUTH0_AUDIENCE",
@@ -93,5 +94,12 @@ describe("configuración MCP", () => {
     expect([...config.auth.allowedSubjects]).toEqual(["auth0|one", "auth0|two"]);
     expect([...config.auth.allowedEmails]).toEqual(["persona@example.com"]);
     expect(config.requiredScope).toBe("mcp:read");
+    expect(config.writeEnabled).toBe(false);
+  });
+
+  it("habilita escritura sólo con el flag explícito", () => {
+    enableValidConfig();
+    process.env.BROCO_MCP_WRITE_ENABLED = "true";
+    expect(readMcpConfig()).toMatchObject({ status: "ok", writeEnabled: true });
   });
 });

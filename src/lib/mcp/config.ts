@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 export const MCP_REQUIRED_SCOPE = "mcp:read";
+export const MCP_WRITE_SCOPE = "mcp:write";
 export const MCP_DEFAULT_PAGE_SIZE = 20;
 export const MCP_MAX_RESULTS = 50;
 export const MCP_MAX_PAGE = 1_000;
@@ -22,6 +23,7 @@ export type EnabledMcpConfig = {
   auth: AuthConfig;
   resourceUrl: string;
   requiredScope: typeof MCP_REQUIRED_SCOPE;
+  writeEnabled?: boolean;
 };
 
 export type McpConfig =
@@ -131,5 +133,7 @@ export function readMcpConfig(): McpConfig {
     },
     resourceUrl,
     requiredScope: MCP_REQUIRED_SCOPE,
+    // Writes are opt-in. Vercel applies environment changes on a new deployment.
+    writeEnabled: process.env.BROCO_MCP_WRITE_ENABLED === "true",
   };
 }
