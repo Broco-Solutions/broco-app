@@ -91,9 +91,6 @@
 .dhtmlx-gantt-host .gantt-milestone-blocked { background: #ef4444; }
 .dhtmlx-gantt-host .gantt-milestone-done { background: #22c55e; }
 
-/* Go Live */
-.dhtmlx-gantt-host .gantt-go-live { background: #f97316; border: none; border-radius: 6px; }
-
 /* Weekend y Hoy — sutiles */
 .dhtmlx-gantt-host .weekend { background: #f7f7f7 !important; }
 .dhtmlx-gantt-host .today { background: #4f46e5; width: 2px; opacity: 0.55; }

@@ -8,8 +8,10 @@ export type GanttFilter = {
 };
 
 function toDate(s: string): Date {
-  const d = new Date(s);
-  return isNaN(d.getTime()) ? new Date(s + "T00:00:00") : d;
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+  if (!match) return new Date(s);
+  const [, year, month, day] = match;
+  return new Date(Number(year), Number(month) - 1, Number(day));
 }
 
 function passesType(t: { type: string }, filter: GanttFilter): boolean {
@@ -36,7 +38,6 @@ function hasVisibleTask(
 export function toDhtmlxData(
   phases: PhaseDTO[],
   tasks: TaskDTO[],
-  goLiveDate: string | null,
   filter: GanttFilter = { type: "all", status: "all" },
 ) {
   const sortedPhases = [...phases].sort((a, b) => a.position - b.position);
@@ -89,23 +90,6 @@ export function toDhtmlxData(
       status: t.status,
       progress: 0,
       open: true,
-    });
-  }
-
-  const hasRealGoLive = sortedTasks.some(
-    (t) => t.type === "MILESTONE" && t.name.trim().toLowerCase() === "go live",
-  );
-  if (goLiveDate && !hasRealGoLive && filter.type !== "task") {
-    data.push({
-      id: "go-live",
-      text: "Go Live",
-      start_date: toDate(goLiveDate),
-      end_date: toDate(goLiveDate),
-      duration: 0,
-      type: "milestone",
-      parent: 0,
-      status: "DONE",
-      progress: 0,
     });
   }
 

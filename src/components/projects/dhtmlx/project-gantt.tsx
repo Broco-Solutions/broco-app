@@ -11,7 +11,6 @@ import "./project-gantt.css";
 type Props = {
   phases: PhaseDTO[];
   tasks: TaskDTO[];
-  goLiveDate: string | null;
   portal?: boolean;
   projectId?: string;
 };
@@ -86,12 +85,12 @@ function fmtEs(d: Date): string {
 }
 
 function computeHeight(phases: number, tasks: number): number {
-  const rows = phases + tasks + 1; // +1 go-live sintético si aplica
+  const rows = phases + tasks;
   const h = 50 + rows * 40 + 20; // header 50 + rows*row_height + margen
   return Math.min(560, Math.max(280, h));
 }
 
-export function ProjectGantt({ phases, tasks, goLiveDate, portal = false, projectId }: Props) {
+export function ProjectGantt({ phases, tasks, portal = false, projectId }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -99,7 +98,7 @@ export function ProjectGantt({ phases, tasks, goLiveDate, portal = false, projec
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const savingRef = useRef<Set<string>>(new Set());
 
-  const dataKey = JSON.stringify({ phases, tasks, goLiveDate });
+  const dataKey = JSON.stringify({ phases, tasks });
 
   useEffect(() => {
     const el = ref.current;
@@ -164,7 +163,7 @@ export function ProjectGantt({ phases, tasks, goLiveDate, portal = false, projec
               width: 110,
               align: "left",
               template: (t: any) =>
-                t.type === "milestone" && t.id !== "go-live"
+                t.type === "milestone"
                   ? `<span class="gantt-status-dot gantt-dot-${String(t.status ?? "todo").toLowerCase()}"></span>◆ ${escapeHtml(STATUS_LABEL[t.status] ?? t.status ?? "")}`
                   : `<span class="gantt-status-dot gantt-dot-${String(t.status ?? "todo").toLowerCase()}"></span>${escapeHtml(STATUS_LABEL[t.status] ?? t.status ?? "")}`,
             },
@@ -205,7 +204,6 @@ export function ProjectGantt({ phases, tasks, goLiveDate, portal = false, projec
         return d === 0 || d === 6 ? "weekend" : "";
       };
       gantt.templates.task_class = (_s: string, _e: Date, task: any) => {
-        if (task.type === "milestone" && task.id === "go-live") return "gantt-go-live";
         if (task.type === "milestone") return `gantt-milestone gantt-milestone-${String(task.status ?? "todo").toLowerCase()}`;
         return `gantt-task-line gantt-task-${String(task.status ?? "todo").toLowerCase()}`;
       };
@@ -221,9 +219,6 @@ export function ProjectGantt({ phases, tasks, goLiveDate, portal = false, projec
         const isMilestone = task.type === "milestone";
         const start = task.start_date ? fmtEs(new Date(task.start_date)) : "";
         const end = task.end_date ? fmtEs(new Date(task.end_date)) : "";
-        if (task.id === "go-live") {
-          return `<div class="gantt-tooltip"><strong>Go Live</strong><div>${start}</div></div>`;
-        }
         if (task.type === "project") {
           return `<div class="gantt-tooltip"><strong>${name}</strong><div>${start} → ${end}</div></div>`;
         }
@@ -272,11 +267,10 @@ export function ProjectGantt({ phases, tasks, goLiveDate, portal = false, projec
 
       // ---- Persistence guards ----
       if (!portal) {
-        // Block dragging/resizing phases, go-live, and milestone resize
+        // Block dragging/resizing phases and milestone resize
         attach("onBeforeTaskDrag", (id: string | number, mode: string, task: any) => {
           if (savingRef.current.has(String(id))) return false;
           if (task.type === "project") return false;
-          if (task.id === "go-live") return false;
           if (task.type === "milestone" && mode === "resize") return false;
           return true;
         });
@@ -293,7 +287,7 @@ export function ProjectGantt({ phases, tasks, goLiveDate, portal = false, projec
         attach("onBeforeTaskMove", (id: string | number, parent: string | number) => {
           if (savingRef.current.has(String(id))) return false;
           const task = gantt.getTask(id);
-          if (!task || task.type === "project" || task.id === "go-live") return false;
+          if (!task || task.type === "project") return false;
           const origParent = task.parent;
           return origParent === parent;
         });
@@ -346,7 +340,7 @@ export function ProjectGantt({ phases, tasks, goLiveDate, portal = false, projec
         if (!projectId) return;
         setSaveState("saving");
         const children = gantt.getChildren(phaseId ?? 0) as (string | number)[];
-        const orderedTaskIds = children.map(String).filter((id) => id !== "go-live");
+        const orderedTaskIds = children.map(String);
         const fd = new FormData();
         fd.set("projectId", projectId);
         if (phaseId) fd.set("phaseId", phaseId);
@@ -370,7 +364,7 @@ export function ProjectGantt({ phases, tasks, goLiveDate, portal = false, projec
 
       gantt.init(el);
 
-      const ganttData = toDhtmlxData(phases, tasks, goLiveDate, {
+      const ganttData = toDhtmlxData(phases, tasks, {
         type: typeFilter,
         status: statusFilter,
       });
@@ -418,7 +412,7 @@ export function ProjectGantt({ phases, tasks, goLiveDate, portal = false, projec
       const mod = await import("dhtmlx-gantt");
       const gantt = (mod as any).gantt || (mod as any).default?.gantt;
       if (!gantt || !ref.current) return;
-      const ganttData = toDhtmlxData(phases, tasks, goLiveDate, {
+      const ganttData = toDhtmlxData(phases, tasks, {
         type: typeFilter,
         status: statusFilter,
       });

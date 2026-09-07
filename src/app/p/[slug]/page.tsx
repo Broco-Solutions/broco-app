@@ -220,7 +220,6 @@ export default async function PortalPage({ params }: { params: { slug: string } 
                 <ProjectGantt
                   phases={JSON.parse(JSON.stringify(plan.phases))}
                   tasks={JSON.parse(JSON.stringify(plan.tasks))}
-                  goLiveDate={plan.goLiveDate ? plan.goLiveDate.toISOString() : null}
                   projectId={plan.id}
                   portal
                 />

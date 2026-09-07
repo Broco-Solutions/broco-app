@@ -142,7 +142,7 @@ export function ProjectPlanningView({
 
       <section className="space-y-2">
         <h2 className="font-display text-xl text-ink">Cronograma</h2>
-        <ProjectGantt phases={phases} tasks={tasks} goLiveDate={projectGoLiveDate} projectId={projectId} />
+        <ProjectGantt phases={phases} tasks={tasks} projectId={projectId} />
       </section>
 
       {banner && (
