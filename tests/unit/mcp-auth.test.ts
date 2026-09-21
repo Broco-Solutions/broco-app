@@ -6,7 +6,7 @@ import {
   SignJWT,
   type JWTVerifyGetKey,
 } from "jose";
-import { makeTokenVerifier } from "@/lib/mcp/auth";
+import { getAuthDiagnostic, makeTokenVerifier } from "@/lib/mcp/auth";
 import type { AuthConfig } from "@/lib/mcp/config";
 
 const ISSUER = "https://example.auth0.com/";
@@ -65,6 +65,34 @@ describe("JWT Auth0 para MCP", () => {
   it("rechaza firma inválida", async () => {
     const other = await generateKeyPair("RS256");
     expect(await verifier(other.publicKey)(new Request(AUDIENCE), await sign())).toBeUndefined();
+  });
+
+  it("clasifica fallos JWT sin conservar datos sensibles", async () => {
+    const request = new Request(AUDIENCE);
+    const token = await sign({}, { audience: "https://wrong.example/api/mcp" });
+    expect(await verifier()(request, token)).toBeUndefined();
+    expect(getAuthDiagnostic(request)).toMatchObject({
+      authorizationPresent: true,
+      tokenVerified: false,
+      errorCode: "AUDIENCE_MISMATCH",
+    });
+    expect(JSON.stringify(getAuthDiagnostic(request))).not.toContain(token);
+  });
+
+  it("clasifica token ausente y subject no permitido", async () => {
+    const missingRequest = new Request(AUDIENCE);
+    expect(await verifier()(missingRequest)).toBeUndefined();
+    expect(getAuthDiagnostic(missingRequest)?.errorCode).toBe("MISSING_TOKEN");
+
+    const outsiderRequest = new Request(AUDIENCE);
+    const outsider = await sign({ sub: "auth0|outsider" });
+    expect(await verifier()(outsiderRequest, outsider)).toBeUndefined();
+    expect(getAuthDiagnostic(outsiderRequest)).toMatchObject({
+      tokenVerified: false,
+      hasSub: true,
+      subjectAllowed: false,
+      errorCode: "SUBJECT_NOT_ALLOWED",
+    });
   });
 
   it.each([

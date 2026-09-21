@@ -1,5 +1,5 @@
 import type { AuthInfo } from "@modelcontextprotocol/server";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { EnabledMcpConfig, McpConfig } from "@/lib/mcp/config";
 import {
   createMcpHttpHandler,
@@ -10,6 +10,7 @@ import {
   MCP_TOOL_NAMES,
   MCP_TOOL_SECURITY_SCHEMES,
 } from "@/server/mcp/tools";
+import { MCP_DIAGNOSTIC_LOGGING_ENV } from "@/lib/mcp/diagnostics";
 
 const enabled: EnabledMcpConfig = {
   status: "ok",
@@ -170,5 +171,115 @@ describe("Protected Resource Metadata", () => {
       bearer_methods_supported: ["header"],
     });
     expect(routes.OPTIONS().status).toBe(204);
+  });
+});
+
+describe("diagnóstico temporal MCP", () => {
+  let info: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    delete process.env[MCP_DIAGNOSTIC_LOGGING_ENV];
+    info = vi.spyOn(console, "info").mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    delete process.env[MCP_DIAGNOSTIC_LOGGING_ENV];
+    vi.restoreAllMocks();
+  });
+
+  function diagnosticEvents() {
+    return info.mock.calls
+      .filter((call: unknown[]) => call[0] === "MCP_DIAG")
+      .map((call: unknown[]) => JSON.parse(String(call[1])) as Record<string, unknown>);
+  }
+
+  it("no registra eventos cuando la variable no es exactamente true", async () => {
+    const test = handler(enabled, authInfo(["mcp:read"]));
+    await test.run(new Request(enabled.resourceUrl));
+    expect(info).not.toHaveBeenCalled();
+  });
+
+  it("registra el ciclo initialize sin secretos", async () => {
+    process.env[MCP_DIAGNOSTIC_LOGGING_ENV] = "true";
+    const test = handler(enabled, {
+      ...authInfo(["mcp:read", "mcp:write"]),
+      extra: { sub: "auth0|sensitive-subject" },
+    });
+    const response = await test.run(
+      new Request(enabled.resourceUrl, {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer sensitive-token",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "initialize",
+          params: {},
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(diagnosticEvents().map((event: Record<string, unknown>) => event.event)).toEqual([
+      "request_received",
+      "auth_success",
+      "initialize_success",
+      "request_complete",
+    ]);
+    const serialized = JSON.stringify(info.mock.calls);
+    expect(serialized).not.toContain("sensitive-token");
+    expect(serialized).not.toContain("Authorization");
+    expect(serialized).not.toContain("sensitive-subject");
+    expect(diagnosticEvents().at(-1)).toMatchObject({
+      event: "request_complete",
+      status: 200,
+      auth: {
+        authorizationPresent: true,
+        tokenVerified: true,
+        scopes: ["mcp:read", "mcp:write"],
+        hasSub: true,
+        subjectAllowed: true,
+      },
+    });
+  });
+
+  it("registra tools/list con el conteo sin alterar la respuesta", async () => {
+    process.env[MCP_DIAGNOSTIC_LOGGING_ENV] = "true";
+    const tools = Array.from({ length: 35 }, (_, index) => ({
+      name: `tool_${index}`,
+      inputSchema: { type: "object" },
+    }));
+    const test = handler(enabled, authInfo(["mcp:read", "mcp:write"]));
+    test.protocol.mockResolvedValueOnce(
+      new Response(`data: ${JSON.stringify({ result: { tools } })}\n\n`, {
+        headers: { "Content-Type": "text/event-stream" },
+      }),
+    );
+    const response = await test.run(
+      new Request(enabled.resourceUrl, {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer sensitive-token",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "tools/list",
+          params: {},
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.text()).toContain('"tool_34"');
+    expect(diagnosticEvents()).toContainEqual(
+      expect.objectContaining({
+        event: "tools_list_success",
+        toolCount: 35,
+      }),
+    );
   });
 });

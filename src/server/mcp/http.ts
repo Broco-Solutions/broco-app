@@ -9,7 +9,18 @@ import {
   type AuthConfig,
   type McpConfig,
 } from "@/lib/mcp/config";
-import { makeTokenVerifier, type TokenVerifier } from "@/lib/mcp/auth";
+import {
+  getAuthDiagnostic,
+  makeTokenVerifier,
+  type TokenVerifier,
+} from "@/lib/mcp/auth";
+import {
+  authDiagnosticSnapshot,
+  finishMcpDiagnostic,
+  logMcpDiagnostic,
+  startMcpDiagnostic,
+  startMcpDiagnosticForPhase,
+} from "@/lib/mcp/diagnostics";
 import {
   MCP_TOOL_NAMES,
   MCP_TOOL_SECURITY_SCHEMES,
@@ -182,23 +193,111 @@ function unavailable(status: 404 | 503) {
   );
 }
 
+function requestErrorCode(status: number, authErrorCode?: string) {
+  if (status === 403) return "INSUFFICIENT_SCOPE";
+  if (status === 401) return authErrorCode ?? "INTERNAL_AUTH_ERROR";
+  return undefined;
+}
+
+function withMetadataDiagnostic(
+  request: Request | undefined,
+  handler: () => Response,
+) {
+  if (!request) return handler();
+  const diagnostic = startMcpDiagnosticForPhase(request, "metadata");
+  let status = 500;
+  try {
+    const response = handler();
+    status = response.status;
+    return response;
+  } finally {
+    finishMcpDiagnostic(diagnostic, status);
+  }
+}
+
+async function logSuccessfulMcpPhase(
+  context: Awaited<ReturnType<typeof startMcpDiagnostic>>,
+  response: Response,
+) {
+  if (!response.ok || context.phase === "unknown" || context.phase === "metadata") {
+    return;
+  }
+  if (context.phase === "initialize") {
+    logMcpDiagnostic("initialize_success", context, { status: response.status });
+    return;
+  }
+  if (context.phase !== "tools/list") return;
+
+  try {
+    const body = await response.clone().text();
+    const dataLine = body
+      .split("\n")
+      .find((line) => line.startsWith("data: "));
+    const payload = dataLine
+      ? JSON.parse(dataLine.slice("data: ".length))
+      : JSON.parse(body);
+    const tools = payload?.result?.tools;
+    if (!Array.isArray(tools)) throw new Error("missing_tools");
+    logMcpDiagnostic("tools_list_success", context, {
+      status: response.status,
+      toolCount: tools.length,
+    });
+  } catch {
+    logMcpDiagnostic("tools_list_error", context, {
+      errorCode: "MALFORMED_RESPONSE",
+    });
+  }
+}
+
 /** Builds the MCP route handler with injectable boundaries for security tests. */
 export function createMcpHttpHandler(
   dependencies: McpHttpDependencies = defaultDependencies,
 ) {
   return async (request: Request) => {
+    const diagnostic = await startMcpDiagnostic(request);
+    let finalStatus = 500;
+    let finalErrorCode: string | undefined;
+    let authErrorCode: string | undefined;
+
+    try {
     const config = dependencies.readConfig();
     if (config.status === "disabled" || config.status === "killed") {
+      finalStatus = 404;
       return unavailable(404);
     }
-    if (config.status === "misconfigured") return unavailable(503);
+    if (config.status === "misconfigured") {
+      finalStatus = 503;
+      return unavailable(503);
+    }
 
     const selectedProtocol = dependencies === defaultDependencies && config.status === "ok" && config.writeEnabled
       ? writeProtocolHandler
       : dependencies.protocolHandler;
+    const baseTokenVerifier = dependencies.tokenVerifier(config.auth);
+    const diagnosticTokenVerifier: TokenVerifier = async (authRequest, bearerToken) => {
+      const authInfo = await baseTokenVerifier(authRequest, bearerToken);
+      const authDiagnostic = getAuthDiagnostic(authRequest);
+      const snapshot = authDiagnosticSnapshot(diagnostic, {
+        authorizationPresent: authDiagnostic?.authorizationPresent ?? Boolean(bearerToken),
+        tokenVerified: authDiagnostic?.tokenVerified ?? Boolean(authInfo),
+        scopes: authDiagnostic?.scopes ?? authInfo?.scopes ?? [],
+        hasSub: authDiagnostic?.hasSub ?? Boolean(authInfo?.extra?.sub),
+        subjectAllowed: authDiagnostic?.subjectAllowed ?? Boolean(authInfo),
+      });
+      authErrorCode = authDiagnostic?.errorCode;
+      if (snapshot.tokenVerified) {
+        logMcpDiagnostic("auth_success", diagnostic, { auth: snapshot });
+      } else {
+        logMcpDiagnostic("auth_failure", diagnostic, {
+          auth: snapshot,
+          errorCode: authDiagnostic?.errorCode ?? "INTERNAL_AUTH_ERROR",
+        });
+      }
+      return authInfo;
+    };
     const authenticatedHandler = withMcpAuth(
       selectedProtocol,
-      dependencies.tokenVerifier(config.auth),
+      diagnosticTokenVerifier,
       {
         required: true,
         requiredScopes: [config.requiredScope],
@@ -207,6 +306,9 @@ export function createMcpHttpHandler(
       },
     );
     const response = await authenticatedHandler(request);
+    finalStatus = response.status;
+    finalErrorCode = requestErrorCode(finalStatus, authErrorCode);
+    await logSuccessfulMcpPhase(diagnostic, response);
     const headers = new Headers(response.headers);
     headers.set("Cache-Control", "no-store");
     return new Response(response.body, {
@@ -214,6 +316,12 @@ export function createMcpHttpHandler(
       statusText: response.statusText,
       headers,
     });
+    } catch (error) {
+      finalErrorCode = "INTERNAL_AUTH_ERROR";
+      throw error;
+    } finally {
+      finishMcpDiagnostic(diagnostic, finalStatus, finalErrorCode);
+    }
   };
 }
 
@@ -229,31 +337,35 @@ export function createProtectedResourceMetadataHandlers(
   readConfig: () => McpConfig = readMcpConfig,
 ) {
   return {
-    GET() {
-      const config = readConfig();
-      if (config.status === "disabled" || config.status === "killed") {
-        return unavailable(404);
-      }
-      if (config.status === "misconfigured") return unavailable(503);
+    GET(request?: Request) {
+      return withMetadataDiagnostic(request, () => {
+        const config = readConfig();
+        if (config.status === "disabled" || config.status === "killed") {
+          return unavailable(404);
+        }
+        if (config.status === "misconfigured") return unavailable(503);
 
-      const metadata = generateProtectedResourceMetadata({
-        authServerUrls: [config.auth.issuer],
-        resourceUrl: config.resourceUrl,
-        additionalMetadata: {
-          resource_name: "Broco Finance MCP (solo lectura)",
-          scopes_supported: [config.requiredScope, MCP_WRITE_SCOPE],
-          bearer_methods_supported: ["header"],
-        },
+        const metadata = generateProtectedResourceMetadata({
+          authServerUrls: [config.auth.issuer],
+          resourceUrl: config.resourceUrl,
+          additionalMetadata: {
+            resource_name: "Broco Finance MCP (solo lectura)",
+            scopes_supported: [config.requiredScope, MCP_WRITE_SCOPE],
+            bearer_methods_supported: ["header"],
+          },
+        });
+        return Response.json(metadata, { headers: metadataHeaders });
       });
-      return Response.json(metadata, { headers: metadataHeaders });
     },
-    OPTIONS() {
-      const config = readConfig();
-      if (config.status === "disabled" || config.status === "killed") {
-        return unavailable(404);
-      }
-      if (config.status === "misconfigured") return unavailable(503);
-      return new Response(null, { status: 204, headers: metadataHeaders });
+    OPTIONS(request?: Request) {
+      return withMetadataDiagnostic(request, () => {
+        const config = readConfig();
+        if (config.status === "disabled" || config.status === "killed") {
+          return unavailable(404);
+        }
+        if (config.status === "misconfigured") return unavailable(503);
+        return new Response(null, { status: 204, headers: metadataHeaders });
+      });
     },
   };
 }
