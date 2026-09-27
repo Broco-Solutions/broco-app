@@ -62,4 +62,34 @@ suite("Horas V1", () => {
   it("protege la eliminación del proyecto con horas, incluso anuladas", async () => {
     await expect(deleteProject(projectA)).rejects.toThrow("movimientos asociados");
   });
+
+  it("permite al ADMIN cargar para sí mismo en proyectos activos y rechaza proyectos inactivos", async () => {
+    const own = await createTimeEntry(admin, { userId: admin.id, projectId: projectA, workDate: today, minutes: 15, description: "Carga propia admin", referenceUrl: null, idempotencyKey: crypto.randomUUID() });
+    expect(own.userId).toBe(admin.id);
+    await prisma.project.update({ where: { id: projectA }, data: { isActive: false } });
+    try {
+      await expect(createTimeEntry(admin, { userId: collaboratorA.id, projectId: projectA, workDate: today, minutes: 15, description: "Inactivo", referenceUrl: null, idempotencyKey: crypto.randomUUID() })).rejects.toThrow("inactivo");
+    } finally {
+      await prisma.project.update({ where: { id: projectA }, data: { isActive: true } });
+    }
+  });
+
+  it("rechaza fechas de calendario inválidas e idempotency keys con payload distinto", async () => {
+    await expect(createTimeEntry(collaboratorA, { userId: collaboratorA.id, projectId: projectA, workDate: "2026-02-30", minutes: 15, description: "Fecha inválida", referenceUrl: null, idempotencyKey: crypto.randomUUID() })).rejects.toThrow("Fecha inválida");
+    const key = crypto.randomUUID();
+    await createTimeEntry(collaboratorA, { userId: collaboratorA.id, projectId: projectA, workDate: today, minutes: 15, description: "Idempotente", referenceUrl: "https://example.test/a", idempotencyKey: key });
+    await expect(createTimeEntry(collaboratorA, { userId: collaboratorA.id, projectId: projectA, workDate: today, minutes: 15, description: "Idempotente", referenceUrl: "https://example.test/b", idempotencyKey: key })).rejects.toThrow("otros datos");
+  });
+
+  it("detecta una corrección concurrente sobre una versión anterior", async () => {
+    const entry = await createTimeEntry(collaboratorA, { userId: collaboratorA.id, projectId: projectA, workDate: today, minutes: 20, description: "Conflicto", referenceUrl: null, idempotencyKey: crypto.randomUUID() });
+    const version = (await prisma.timeEntry.findUniqueOrThrow({ where: { id: entry.id } })).updatedAt.toISOString();
+    const input = { projectId: projectA, workDate: today, minutes: 25, description: "Corrección concurrente", referenceUrl: null };
+    const results = await Promise.allSettled([
+      updateTimeEntry(admin, entry.id, input, "Corrección administrativa", version),
+      updateTimeEntry(admin, entry.id, { ...input, minutes: 30 }, "Corrección administrativa", version),
+    ]);
+    expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+    expect(results.filter((result) => result.status === "rejected")).toHaveLength(1);
+  });
 });

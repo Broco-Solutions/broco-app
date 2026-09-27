@@ -5,14 +5,14 @@ import { PageHeader } from "@/components/ui/page-header";
 import { HoursScreen } from "./hours-screen";
 import { HoursMetrics } from "./hours-metrics";
 import { ReportsFilters } from "./reports/reports-filters";
+import { todayKeyArgentina, toUtcDate } from "@/lib/dates";
 
 export const dynamic = "force-dynamic";
 
 function week() {
-  const now = new Date();
-  const day = (now.getUTCDay() + 6) % 7;
-  const from = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - day));
-  const to = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const to = toUtcDate(todayKeyArgentina());
+  const day = (to.getUTCDay() + 6) % 7;
+  const from = new Date(Date.UTC(to.getUTCFullYear(), to.getUTCMonth(), to.getUTCDate() - day));
   return { from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) };
 }
 

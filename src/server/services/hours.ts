@@ -3,8 +3,9 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/server/prisma";
 import { type CurrentUser } from "@/lib/auth";
+import { isValidCalendarDateKey, todayKeyArgentina, toUtcDate } from "@/lib/dates";
 
-const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida.");
+const dateSchema = z.string().refine(isValidCalendarDateKey, "Fecha inválida.");
 const entrySchema = z.object({
   userId: z.string().uuid(), projectId: z.string().uuid(), workDate: dateSchema,
   minutes: z.number().int().positive().max(1440), description: z.string().trim().min(1, "La descripción es obligatoria.").max(2000), idempotencyKey: z.string().uuid(),
@@ -12,16 +13,16 @@ const entrySchema = z.object({
 });
 export type TimeEntryInput = z.infer<typeof entrySchema>;
 
-function utcDate(value: string) { return new Date(`${value}T00:00:00.000Z`); }
-function todayCordoba() { const parts = new Intl.DateTimeFormat("en-US", { timeZone: "America/Argentina/Cordoba", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date()); const get = (type: string) => parts.find((part) => part.type === type)?.value ?? ""; return `${get("year")}-${get("month")}-${get("day")}`; }
-function assertDate(value: string) { if (value > todayCordoba()) throw new Error("No se pueden cargar fechas futuras."); }
+function utcDate(value: string) { return toUtcDate(value); }
+function assertDate(value: string) { if (value > todayKeyArgentina()) throw new Error("No se pueden cargar fechas futuras."); }
 function canManage(user: CurrentUser, targetUserId: string) { return user.role === "ADMIN" || user.id === targetUserId; }
 function auditJson(value: unknown): Prisma.InputJsonValue { return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue; }
 
 async function assertProjectScope(actor: CurrentUser, userId: string, projectId: string, tx: Prisma.TransactionClient | typeof prisma = prisma) {
   const project = await tx.project.findUnique({ where: { id: projectId }, select: { id: true, name: true, isActive: true, client: { select: { id: true, name: true } } } });
   if (!project) throw new Error("Proyecto inexistente.");
-  if (actor.role === "ADMIN" && actor.id !== userId) return project;
+  if (!project.isActive) throw new Error("No se pueden cargar horas en un proyecto inactivo.");
+  if (actor.role === "ADMIN") return project;
   const assigned = await tx.hourAssignment.findUnique({ where: { userId_projectId: { userId, projectId } } });
   if (!assigned || !project.isActive) throw new Error("La persona no tiene autorización para cargar en este proyecto activo.");
   return project;
@@ -43,7 +44,14 @@ export async function createTimeEntry(actor: CurrentUser, raw: TimeEntryInput) {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`${input.userId}:${input.workDate}`}))`;
     const existing = await tx.timeEntry.findUnique({ where: { idempotencyKey: input.idempotencyKey }, select: { id: true, userId: true, projectId: true, workDate: true, minutes: true, description: true, referenceUrl: true, status: true, createdAt: true, project: { select: { name: true, client: { select: { name: true } } } } } });
     if (existing) {
-      if (existing.userId !== input.userId || existing.projectId !== input.projectId || existing.minutes !== input.minutes || existing.description !== input.description) throw new Error("La operación ya fue utilizada con otros datos.");
+      if (
+        existing.userId !== input.userId ||
+        existing.projectId !== input.projectId ||
+        existing.workDate.toISOString().slice(0, 10) !== input.workDate ||
+        existing.minutes !== input.minutes ||
+        existing.description !== input.description ||
+        (existing.referenceUrl ?? null) !== (input.referenceUrl ?? null)
+      ) throw new Error("La operación ya fue utilizada con otros datos.");
       return { ...existing, projectName: existing.project.name, clientName: existing.project.client.name };
     }
     const project = await assertProjectScope(actor, input.userId, input.projectId, tx);
@@ -92,12 +100,16 @@ export async function voidTimeEntry(actor: CurrentUser, id: string, reason: stri
   return updated;
 }
 
-export async function updateTimeEntry(actor: CurrentUser, id: string, input: Omit<TimeEntryInput, "userId" | "idempotencyKey">, reason: string) {
+export async function updateTimeEntry(actor: CurrentUser, id: string, input: Omit<TimeEntryInput, "userId" | "idempotencyKey">, reason: string, expectedUpdatedAt?: string) {
   const parsed = entrySchema.omit({ userId: true, idempotencyKey: true }).parse(input);
   const current = await prisma.timeEntry.findUnique({ where: { id }, select: { id: true, userId: true, projectId: true, workDate: true, minutes: true, description: true, referenceUrl: true, status: true, createdById: true, modifiedById: true, voidReason: true, createdAt: true, updatedAt: true, project: { select: { id: true, name: true, client: { select: { id: true, name: true } } } } } });
   if (!current || current.status !== "ACTIVE") throw new Error("Registro inexistente o anulado.");
   if (actor.role !== "ADMIN" && current.userId !== actor.id) throw new Error("No autorizado.");
   if (current.userId !== actor.id && !reason.trim()) throw new Error("El motivo es obligatorio para corregir un registro ajeno.");
+  if (expectedUpdatedAt) {
+    const expected = new Date(expectedUpdatedAt);
+    if (Number.isNaN(expected.getTime()) || current.updatedAt.getTime() !== expected.getTime()) throw new Error("El registro cambió; actualizá la lista antes de corregirlo.");
+  }
   assertDate(parsed.workDate);
   const updated = await prisma.$transaction(async (tx) => {
     const keys = [...new Set([current.workDate.toISOString().slice(0, 10), parsed.workDate])].sort();
@@ -106,7 +118,11 @@ export async function updateTimeEntry(actor: CurrentUser, id: string, input: Omi
     const aggregate = await tx.timeEntry.aggregate({ where: { id: { not: id }, userId: current.userId, workDate: utcDate(parsed.workDate), status: "ACTIVE" }, _sum: { minutes: true } });
     if ((aggregate._sum.minutes ?? 0) + parsed.minutes > 1440) throw new Error("El total diario no puede superar 24 horas.");
     const before = auditJson(current);
-    await tx.timeEntry.update({ where: { id }, data: { projectId: parsed.projectId, workDate: utcDate(parsed.workDate), minutes: parsed.minutes, description: parsed.description, referenceUrl: parsed.referenceUrl || null, modifiedById: actor.id } });
+    const changed = await tx.timeEntry.updateMany({
+      where: { id, status: "ACTIVE", updatedAt: current.updatedAt },
+      data: { projectId: parsed.projectId, workDate: utcDate(parsed.workDate), minutes: parsed.minutes, description: parsed.description, referenceUrl: parsed.referenceUrl || null, modifiedById: actor.id },
+    });
+    if (changed.count !== 1) throw new Error("El registro cambió; actualizá la lista antes de corregirlo.");
     const after = await tx.timeEntry.findUniqueOrThrow({ where: { id } });
     await tx.timeEntryAudit.create({ data: { entryId: id, actorId: actor.id, action: "UPDATED", reason: reason.trim() || null, beforeJson: before, afterJson: auditJson(after) } });
     return after;

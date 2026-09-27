@@ -5,9 +5,10 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { DataTable } from "@/components/ui/data-table";
 import { ReportsFilters } from "./reports-filters";
+import { todayKeyArgentina, toUtcDate } from "@/lib/dates";
 
 export const dynamic = "force-dynamic";
-function month() { const now = new Date(); return { from: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString().slice(0, 10), to: now.toISOString().slice(0, 10) }; }
+function month() { const now = toUtcDate(todayKeyArgentina()); return { from: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString().slice(0, 10), to: now.toISOString().slice(0, 10) }; }
 function Metric({ title, value, detail }: { title: string; value: string | number; detail: string }) { return <Card className="min-h-32 bg-gradient-to-br from-ink to-cobalt text-white"><p className="text-xs font-semibold uppercase tracking-wider text-white/70">{title}</p><p className="mt-4 text-3xl font-semibold">{value}</p><p className="mt-1 text-sm text-white/70">{detail}</p></Card>; }
 
 export default async function HoursReportsPage({ searchParams }: { searchParams?: { from?: string; to?: string; clientId?: string; projectId?: string; userId?: string } }) {

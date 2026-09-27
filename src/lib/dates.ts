@@ -27,8 +27,7 @@ export function monthLabel(m: number, y: number): string {
 }
 
 export function todayArg(): Date {
-  const f = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Argentina/Cordoba", year: "numeric", month: "2-digit", day: "2-digit" });
-  const [yy, mm, dd] = f.format(new Date()).split("-").map(Number);
+  const [yy, mm, dd] = todayKeyArgentina().split("-").map(Number);
   return new Date(yy, mm - 1, dd);
 }
 
@@ -59,13 +58,30 @@ export function isDateOnlyInRange(
   return true;
 }
 
-export function todayKeyArgentina(): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Argentina/Cordoba",
+export function calendarDateKeyInTimeZone(timeZone: string, now = new Date()): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-  }).format(new Date());
+  }).formatToParts(now);
+  const get = (type: string) => parts.find((part) => part.type === type)?.value;
+  const year = get("year");
+  const month = get("month");
+  const day = get("day");
+  if (!year || !month || !day) throw new Error("No se pudo determinar la fecha calendario.");
+  return `${year}-${month}-${day}`;
+}
+
+export function todayKeyArgentina(now = new Date()): string {
+  return calendarDateKeyInTimeZone("America/Argentina/Cordoba", now);
+}
+
+export function isValidCalendarDateKey(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const [year, month, day] = value.split("-").map(Number);
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  return parsed.getUTCFullYear() === year && parsed.getUTCMonth() === month - 1 && parsed.getUTCDate() === day;
 }
 
 export function toUtcDate(key: string): Date {
