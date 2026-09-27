@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useFormState } from "react-dom";
+import { useRouter } from "next/navigation";
 import { saveTimeEntry, updateEntry, voidEntry } from "./actions";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Button } from "@/components/ui/button";
@@ -17,15 +18,18 @@ type Entry = { id: string; userId: string; projectId: string; workDate: string; 
 function formatMinutes(minutes: number) { const h = Math.floor(minutes / 60); const m = minutes % 60; return h ? `${h} h${m ? ` ${m} min` : ""}` : `${m} min`; }
 
 export function HoursScreen({ actor, users, projects, entries, defaultFrom, defaultTo }: { actor: CurrentUser; users: User[]; projects: Project[]; entries: Entry[]; defaultFrom: string; defaultTo: string }) {
+  const router = useRouter();
+  const formRef = useRef<HTMLFormElement>(null);
   const [clientId, setClientId] = useState(""); const [projectId, setProjectId] = useState(""); const [unit, setUnit] = useState("MINUTES"); const [duration, setDuration] = useState(""); const [pending, start] = useTransition(); const [editingId, setEditingId] = useState<string | null>(null);
   const [state, formAction] = useFormState(saveTimeEntry, null); const [updateState, updateAction] = useFormState(updateEntry, null);
-  const [operationId] = useState(() => (typeof crypto !== "undefined" ? crypto.randomUUID() : ""));
+  const [operationId, setOperationId] = useState(() => (typeof crypto !== "undefined" ? crypto.randomUUID() : ""));
   const clients = useMemo(() => [...new Map(projects.map((p) => [p.client.id, { id: p.client.id, name: p.client.name }])).values()], [projects]);
   const filteredProjects = projects.filter((p) => !clientId || p.client.id === clientId);
   const equivalent = Number(duration.replace(",", ".")) * (unit === "HOURS" ? 60 : 1);
   const submit = (form: HTMLFormElement) => start(() => formAction(new FormData(form)));
+  useEffect(() => { if (!state?.success) return; setOperationId(typeof crypto !== "undefined" ? crypto.randomUUID() : ""); if (state.reset) { setDuration(""); const description = formRef.current?.elements.namedItem("description") as HTMLTextAreaElement | null; const reference = formRef.current?.elements.namedItem("referenceUrl") as HTMLInputElement | null; if (description) description.value = ""; if (reference) reference.value = ""; } router.refresh(); }, [router, state]);
   return <div className="space-y-5">
-    <Card><form onSubmit={(e) => { e.preventDefault(); submit(e.currentTarget); }} className="space-y-4">
+    <Card><form ref={formRef} onSubmit={(e) => { e.preventDefault(); submit(e.currentTarget); }} className="space-y-4">
       <input type="hidden" name="operationId" value={operationId} />
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {actor.role === "ADMIN" ? <div><label className="text-xs font-semibold uppercase tracking-wider text-gray-500">Usuario</label><select name="userId" defaultValue={actor.id} className="mt-1 h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm">{users.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}</select></div> : <input type="hidden" name="userId" value={actor.id} />}

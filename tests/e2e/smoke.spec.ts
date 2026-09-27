@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { loginAsAdmin } from "./auth";
 
 const BASE = "http://localhost:3299";
 
@@ -7,10 +8,8 @@ const BASE = "http://localhost:3299";
 const M_TYPE = 2;
 
 test.describe("Smoke - dates, filters, totalizer", () => {
-  test.beforeEach(async ({ context }) => {
-    await context.addCookies([
-      { name: "broco_session", value: "ok", domain: "localhost", path: "/" },
-    ]);
+  test.beforeEach(async ({ page }) => {
+    await loginAsAdmin(page);
   });
 
   // --- Flujo A: dates ---

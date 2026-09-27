@@ -1,12 +1,11 @@
 import { test, expect } from "@playwright/test";
+import { loginAsAdmin } from "./auth";
 
 const BASE = "http://localhost:3299";
 
 test.describe("Shared project folder link", () => {
-  test.beforeEach(async ({ context }) => {
-    await context.addCookies([
-      { name: "broco_session", value: "ok", domain: "localhost", path: "/" },
-    ]);
+  test.beforeEach(async ({ page }) => {
+    await loginAsAdmin(page);
   });
 
   test("admin configura la carpeta, el cliente la ve en el portal y al quitarla desaparece", async ({

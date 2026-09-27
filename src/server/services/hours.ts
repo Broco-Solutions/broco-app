@@ -58,7 +58,6 @@ export async function createTimeEntry(actor: CurrentUser, raw: TimeEntryInput) {
 
 export type HourFilters = { from: string; to: string; clientId?: string; projectId?: string; userId?: string };
 export async function listTimeEntries(actor: CurrentUser, filters: HourFilters) {
-  if (actor.role !== "ADMIN" && filters.userId && filters.userId !== actor.id) throw new Error("No autorizado.");
   const where = { workDate: { gte: utcDate(filters.from), lte: utcDate(filters.to) }, ...(filters.clientId ? { project: { clientId: filters.clientId } } : {}), ...(filters.projectId ? { projectId: filters.projectId } : {}), ...(actor.role === "ADMIN" && filters.userId ? { userId: filters.userId } : actor.role === "COLLABORATOR" ? { userId: actor.id } : {}) };
   return prisma.timeEntry.findMany({ where, orderBy: [{ workDate: "desc" }, { createdAt: "desc" }], select: { id: true, userId: true, projectId: true, workDate: true, minutes: true, description: true, referenceUrl: true, status: true, createdAt: true, updatedAt: true, user: { select: { name: true, email: true } }, project: { select: { name: true, client: { select: { id: true, name: true } } } } } });
 }

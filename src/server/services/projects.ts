@@ -585,14 +585,14 @@ export async function updateProject(id: string, input: ProjectInput) {
   const data = projectInputSchema.parse(input);
   const existing = await prisma.project.findUnique({
     where: { id },
-    select: { clientId: true, _count: { select: { incomes: true, expenses: true } } },
+    select: { clientId: true, _count: { select: { incomes: true, expenses: true, timeEntries: true } } },
   });
   if (!existing) throw new Error("Proyecto no encontrado.");
 
   // Block client change if project has movements
   if (data.clientId !== existing.clientId) {
     const hasMovements =
-      existing._count.incomes > 0 || existing._count.expenses > 0;
+      existing._count.incomes > 0 || existing._count.expenses > 0 || existing._count.timeEntries > 0;
     if (hasMovements) {
       throw new Error(
         "No se puede cambiar el cliente porque el proyecto tiene movimientos asociados.",
@@ -642,12 +642,12 @@ export async function deleteProject(id: string) {
   const project = await prisma.project.findUnique({
     where: { id },
     select: {
-      _count: { select: { incomes: true, expenses: true } },
+      _count: { select: { incomes: true, expenses: true, timeEntries: true } },
     },
   });
   if (!project) throw new Error("Proyecto no encontrado.");
 
-  if (project._count.incomes > 0 || project._count.expenses > 0) {
+  if (project._count.incomes > 0 || project._count.expenses > 0 || project._count.timeEntries > 0) {
     throw new Error(
       "No se puede eliminar el proyecto porque tiene movimientos asociados.",
     );

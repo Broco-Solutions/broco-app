@@ -31,16 +31,61 @@ Para producción queda pendiente un runner controlado con pre-checks, una senten
 
 ## Pruebas locales
 
-1. `pnpm test:db:up`.
+1. Levantar PostgreSQL dedicado con `docker compose -f docker-compose.test.yml up -d`.
 2. Confirmar que `.env.test` usa PostgreSQL en `localhost:5434`; no imprimir la URL.
-3. `DATABASE_URL=<base dedicada> pnpm exec prisma db push` y crear tres cuentas locales: un admin y dos colaboradores. Asignar proyectos distintos desde Equipo.
-4. Iniciar con `AUTH_SECRET` definido: `pnpm dev`.
-5. Verificar activación, carga con minutos/horas y coma/punto, cambio de unidad, límite de 24 horas, asignación incorrecta, fechas futuras, filtros, CSV, anulación e historial.
-6. Ejecutar `pnpm exec tsc --noEmit`, `pnpm lint`, `pnpm test` y el build. Los tests E2E históricos que inyectan `broco_session=ok` deben migrarse a login real de Auth.js antes de considerarse válidos.
+3. Aplicar el esquema con `set -a; source .env.test; set +a; DATABASE_URL="$DATABASE_URL_TEST" pnpm exec prisma db push --skip-generate`.
+4. Preparar las tres identidades y proyectos con `HOURS_TEST_PASSWORD` temporal:
+   `set -a; source .env.test; set +a; HOURS_TEST_PASSWORD='(secreto temporal)' pnpm seed:hours:test`.
+5. Para navegador, iniciar el servidor apuntando explícitamente a `DATABASE_URL_TEST`, con `AUTH_SECRET` temporal y `PORT=3299`.
+6. Ejecutar `pnpm exec vitest run tests/integration/hours.test.ts` y `pnpm test:e2e`. El E2E usa login real de Auth.js, no cookies compartidas.
+7. Verificar activación, carga con minutos/horas y coma/punto, cambio de unidad, límite de 24 horas, asignación incorrecta, fechas futuras, filtros, CSV, corrección, anulación e historial.
 
-## Pendientes antes de producción
+Para preparar las tres identidades y dos proyectos de prueba sin guardar contraseñas, usar una variable temporal:
 
-- Revisar y migrar todos los E2E existentes a cuentas de prueba Auth.js y agregar cobertura específica de seguridad, reintentos, paginación, auditoría y flujo completo en navegador.
-- Añadir pantalla de edición administrativa con motivo obligatorio (la v1 ya soporta anulación con motivo y auditoría).
-- Ejecutar un runner de esquema con pre-checks contra producción, configurar `AUTH_SECRET`, verificar cookies seguras, backup y rollback, y completar una prueba con tres cuentas no reales.
-- No hacer deploy, push ni crear credenciales reales como parte de esta entrega.
+```bash
+DATABASE_URL_TEST='<solo la URL local de .env.test>' HOURS_TEST_PASSWORD='(secreto temporal de 12+ caracteres)' pnpm seed:hours:test
+```
+
+El script rechaza cualquier host distinto de `localhost:5434` y no imprime la contraseña.
+
+## Resultado de la validación de esta tanda
+
+- `tests/integration/hours.test.ts`: 5/5 PASS, incluyendo IDOR, idempotencia,
+  límite diario, corrección administrativa, anulación, auditoría y protección
+  de proyectos con horas.
+- `pnpm test:e2e`: 24/24 PASS con administrador y dos colaboradores de test;
+  se migraron los escenarios legacy a login real.
+- Verificación visual Playwright: `/login`, `/hours`, `/hours/reports` y
+  `/hours/team` en escritorio y móvil, sin errores de consola observados.
+  La CLI `agent-browser` no está instalada en este entorno; se usó Playwright
+  directamente como fallback.
+- La suite completa existente ejecuta 356/382 tests PASS. Los 26 fallos son
+  preexistentes o de fixtures compartidos: constraints SQL no aplicadas en la
+  base histórica, duplicados case-insensitive, reconciliación con totales
+  alterados por datos de prueba y dos casos batch de ingresos. No corresponden
+  a Horas y se mantienen separados de la validación específica.
+
+## Preparación para producción
+
+La migración `prisma/migrations/20260927090000_add_hours_auth/migration.sql`
+es el registro de esquema para revisión. No se ejecutó fuera de PostgreSQL
+local/test. Antes de producción se necesita un runner controlado que:
+
+- haga prechecks de tablas/columnas/filas inesperadas y aborte ante cualquier
+  estado no previsto;
+- ejecute DDL de a una sentencia por llamada al proxy de Prisma Accelerate;
+- sea idempotente, registre solo resultados no sensibles y no haga seed;
+- tenga backup/verificación previa, ventana aprobada y rollback lógico;
+- valide una segunda ejecución segura y los índices/constraints resultantes.
+
+Variables previstas: `AUTH_SECRET`, más las variables ya existentes del portal
+(`PROJECT_SHARE_ENCRYPTION_KEY` y `PROJECT_SHARE_SESSION_SECRET`). Las
+variables `ALLOW_ADMIN_BOOTSTRAP`, `ADMIN_BOOTSTRAP_NAME`,
+`ADMIN_BOOTSTRAP_EMAIL` y `ADMIN_BOOTSTRAP_PASSWORD` solo se usan durante el
+bootstrap inicial controlado y no deben quedar configuradas permanentemente.
+La activación se entrega manualmente; no hay envío de correo en V1.
+
+Antes de publicar todavía falta ejecutar ese procedimiento de migración y
+validación en un entorno productivo controlado, crear cuentas reales fuera de
+Git y acordar el canal privado para los enlaces de activación. Esta tanda no
+hizo push, deploy, DDL remoto ni creó credenciales reales.

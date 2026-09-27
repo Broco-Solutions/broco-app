@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
 import { createTimeEntry, updateTimeEntry, voidTimeEntry } from "@/server/services/hours";
 
-type Result = { success: true; id?: string } | { success: false; message: string };
+type Result = { success: true; id?: string; reset?: boolean } | { success: false; message: string };
 
 export async function saveTimeEntry(_prev: Result | null, formData: FormData): Promise<Result> {
   try {
@@ -19,7 +19,7 @@ export async function saveTimeEntry(_prev: Result | null, formData: FormData): P
     if (minutes !== exact) throw new Error(`La duración se redondearía a ${minutes} minutos. Ajustá el valor antes de guardar.`);
     const result = await createTimeEntry(actor, { userId: String(formData.get("userId") || actor.id), projectId: String(formData.get("projectId")), workDate: String(formData.get("workDate")), minutes, description: String(formData.get("description") ?? ""), referenceUrl: formData.get("referenceUrl") ? String(formData.get("referenceUrl")) : null, idempotencyKey: String(formData.get("operationId")) });
     revalidatePath("/hours"); revalidatePath("/hours/reports");
-    return { success: true, id: result.id };
+    return { success: true, id: result.id, reset: formData.get("saveMode") === "another" };
   } catch (error) { return { success: false, message: error instanceof Error ? error.message : "No se pudo guardar." }; }
 }
 

@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { loginAsAdmin } from "./auth";
 
 const BASE = "http://localhost:3299";
 
@@ -23,10 +24,8 @@ async function findSelectByOptions(page: import("@playwright/test").Page, texts:
 }
 
 test.describe("Income modal flows", () => {
-  test.beforeEach(async ({ context }) => {
-    await context.addCookies([
-      { name: "broco_session", value: "ok", domain: "localhost", path: "/" },
-    ]);
+  test.beforeEach(async ({ page }) => {
+    await loginAsAdmin(page);
   });
 
   test("Flujo A — new project appears in income form after creation", async ({ page }) => {

@@ -1,0 +1,24 @@
+import "dotenv/config";
+import { hash } from "bcryptjs";
+import { prisma } from "@/server/prisma";
+
+async function main() {
+  const rawUrl = process.env.DATABASE_URL_TEST;
+  if (!rawUrl) throw new Error("DATABASE_URL_TEST es obligatoria.");
+  const dbUrl = new URL(rawUrl);
+  if (dbUrl.hostname !== "localhost" || dbUrl.port !== "5434" || dbUrl.pathname.slice(1) !== "broco_finance_test") throw new Error("Este script solo acepta localhost:5434/broco_finance_test.");
+  const password = process.env.HOURS_TEST_PASSWORD;
+  if (!password || password.length < 12) throw new Error("HOURS_TEST_PASSWORD debe tener al menos 12 caracteres y solo se usa en el entorno de test.");
+  const passwordHash = await hash(password, 4);
+  async function client(name: string) { return prisma.client.findFirst({ where: { name } }).then((found) => found ?? prisma.client.create({ data: { name } })); }
+  async function project(clientId: string, name: string) { return prisma.project.findFirst({ where: { clientId, name } }).then((found) => found ?? prisma.project.create({ data: { clientId, name, isActive: true } })); }
+  async function user(name: string, email: string, role: "ADMIN" | "COLLABORATOR") { return prisma.appUser.upsert({ where: { email }, update: { name, role, passwordHash, isActive: true }, create: { name, email, role, passwordHash, isActive: true } }); }
+  const [clientA, clientB] = await Promise.all([client("Horas Test Cliente A"), client("Horas Test Cliente B")]);
+  const [projectA, projectB] = await Promise.all([project(clientA.id, "Horas Test Proyecto A1"), project(clientB.id, "Horas Test Proyecto B1")]);
+  const [admin, collaboratorA, collaboratorB] = await Promise.all([user("Admin Horas Test", "admin@test.local", "ADMIN"), user("Colaborador A Test", "dev-a@test.local", "COLLABORATOR"), user("Colaborador B Test", "dev-b@test.local", "COLLABORATOR")]);
+  await prisma.hourAssignment.upsert({ where: { userId_projectId: { userId: collaboratorA.id, projectId: projectA.id } }, update: {}, create: { userId: collaboratorA.id, projectId: projectA.id } });
+  await prisma.hourAssignment.upsert({ where: { userId_projectId: { userId: collaboratorB.id, projectId: projectB.id } }, update: {}, create: { userId: collaboratorB.id, projectId: projectB.id } });
+  console.log(JSON.stringify({ adminId: admin.id, collaboratorAId: collaboratorA.id, collaboratorBId: collaboratorB.id, projectAId: projectA.id, projectBId: projectB.id }));
+}
+
+main().finally(() => prisma.$disconnect());

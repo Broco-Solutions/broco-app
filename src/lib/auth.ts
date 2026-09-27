@@ -27,7 +27,3 @@ export async function requireRole(role: AppRole): Promise<CurrentUser> {
   if (user.role !== role) redirect(user.role === "COLLABORATOR" ? "/hours" : "/");
   return user;
 }
-
-export function isLegacySessionCookieName(name: string) {
-  return name === "broco_session";
-}
