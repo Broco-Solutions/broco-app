@@ -251,45 +251,63 @@ export async function inspectHoursAuthMigration(client: SqlClient, schema = HOUR
 
 export async function runHoursAuthMigration(
   prisma: PrismaClient,
-  options: { schema?: string; onEvent?: (event: string) => void } = {},
+  options: { schema?: string; onEvent?: (event: string) => void; statements?: readonly string[] } = {},
 ): Promise<MigrationRunResult> {
   const schema = options.schema ?? HOURS_AUTH_SCHEMA;
   assertSchemaName(schema);
   const emit = options.onEvent ?? (() => undefined);
 
-  return prisma.$transaction(async (tx) => {
-    await tx.$executeRawUnsafe("SELECT pg_advisory_xact_lock(hashtext('broco:hours-auth-v1-migration'))");
-    await tx.$executeRawUnsafe(`SET LOCAL search_path TO ${quoteIdentifier(schema)}`);
+  const inspection = await inspectHoursAuthMigration(prisma, schema);
+  if (inspection.state === "COMPLETE") {
+    emit("PRECHECK_COMPLETE");
+    emit("MIGRATION_SKIPPED");
+    return { state: "SKIP", executedStatements: 0 };
+  }
+  if (inspection.state === "PARTIAL_ABORT") {
+    emit("PRECHECK_PARTIAL_ABORT");
+    throw new Error(`Estado parcial de Auth/Tiempos: ${inspection.problems.join(" ")}`);
+  }
+  if (inspection.state === "HISTORICAL_SCHEMA_MISSING_ABORT") {
+    emit("PRECHECK_HISTORICAL_SCHEMA_MISSING_ABORT");
+    throw new Error(`Faltan tablas históricas: ${inspection.missingHistoricalTables.join(", ")}`);
+  }
 
-    const inspection = await inspectHoursAuthMigration(tx, schema);
-    if (inspection.state === "COMPLETE") {
+  emit("PRECHECK_NOT_APPLIED");
+  const statements = options.statements ?? getHoursAuthMigrationStatements();
+  const operations = [
+    prisma.$executeRawUnsafe("SELECT pg_advisory_xact_lock(hashtext('broco:hours-auth-v1-migration'))"),
+    prisma.$executeRawUnsafe(`SET LOCAL search_path TO ${quoteIdentifier(schema)}`),
+    ...statements.map((statement, index) => {
+      emit(ddlLabel(statement, index + 1));
+      // Each item is one statement; Prisma sends the whole array as one DB transaction.
+      return prisma.$executeRawUnsafe(statement);
+    }),
+  ];
+
+  try {
+    // Batch transactions avoid Prisma's interactive transaction protocol, which
+    // expired in Prisma Postgres while DDL was being executed.
+    await prisma.$transaction(operations, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+  } catch (error) {
+    // A concurrent runner may have committed the complete migration while this
+    // batch was waiting for the advisory lock. Treat its duplicate-object error
+    // as the safe idempotent outcome; all other failures remain fatal.
+    const afterFailure = await inspectHoursAuthMigration(prisma, schema);
+    if (afterFailure.state === "COMPLETE") {
       emit("PRECHECK_COMPLETE");
       emit("MIGRATION_SKIPPED");
       return { state: "SKIP", executedStatements: 0 };
     }
-    if (inspection.state === "PARTIAL_ABORT") {
-      emit("PRECHECK_PARTIAL_ABORT");
-      throw new Error(`Estado parcial de Auth/Tiempos: ${inspection.problems.join(" ")}`);
-    }
-    if (inspection.state === "HISTORICAL_SCHEMA_MISSING_ABORT") {
-      emit("PRECHECK_HISTORICAL_SCHEMA_MISSING_ABORT");
-      throw new Error(`Faltan tablas históricas: ${inspection.missingHistoricalTables.join(", ")}`);
-    }
+    throw error;
+  }
 
-    emit("PRECHECK_NOT_APPLIED");
-    const statements = getHoursAuthMigrationStatements();
-    for (const [index, statement] of statements.entries()) {
-      emit(ddlLabel(statement, index + 1));
-      // Exactly one DDL statement per Prisma call; required by Accelerate.
-      await tx.$executeRawUnsafe(statement);
-    }
-
-    const postcheck = await inspectHoursAuthMigration(tx, schema);
-    if (postcheck.state !== "COMPLETE") {
-      throw new Error(`POSTCHECK_ABORT: ${postcheck.problems.join(" ") || postcheck.state}`);
-    }
-    emit("POSTCHECK_COMPLETE");
-    emit("MIGRATION_COMPLETED");
-    return { state: "APPLIED", executedStatements: statements.length };
-  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+  // The batch has committed atomically. Keep the full structural postcheck as
+  // an explicit, auditable verification of the committed result.
+  const postcheck = await inspectHoursAuthMigration(prisma, schema);
+  if (postcheck.state !== "COMPLETE") {
+    throw new Error(`POSTCHECK_ABORT: ${postcheck.problems.join(" ") || postcheck.state}`);
+  }
+  emit("POSTCHECK_COMPLETE");
+  emit("MIGRATION_COMPLETED");
+  return { state: "APPLIED", executedStatements: statements.length };
 }

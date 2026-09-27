@@ -59,6 +59,29 @@ describe("controlled Auth/Tiempos production runner", () => {
     expect((await inspectHoursAuthMigration(prisma, schema)).state).toBe("PARTIAL_ABORT");
   });
 
+  it("rolls back every DDL statement when a later statement fails", async () => {
+    const statements = getHoursAuthMigrationStatements();
+    const deliberateFailure = `CREATE TABLE ${quote(schema)}."deliberate_failure" ("id" UUID NOT NULL, "id" UUID NOT NULL)`;
+
+    await expect(runHoursAuthMigration(prisma, {
+      schema,
+      statements: [...statements.slice(0, 4), deliberateFailure],
+    })).rejects.toThrow();
+
+    const artifacts = await prisma.$queryRawUnsafe<Array<{ kind: string; name: string }>>(`
+      SELECT 'enum' AS kind, t.typname AS name
+      FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace
+      WHERE n.nspname = '${schema}' AND t.typname = 'AppUserRole'
+      UNION ALL
+      SELECT 'table' AS kind, table_name AS name
+      FROM information_schema.tables
+      WHERE table_schema = '${schema}'
+        AND table_name IN ('app_users', 'access_tokens', 'hour_assignments', 'time_entries', 'time_entry_audits')
+    `);
+    expect(artifacts).toEqual([]);
+    expect((await inspectHoursAuthMigration(prisma, schema)).state).toBe("NOT_APPLIED");
+  });
+
   it("aborts before DDL when the historical SOT schema is not present", async () => {
     const emptySchema = `prod_empty_${randomUUID().replaceAll("-", "")}`;
     await prisma.$executeRawUnsafe(`CREATE SCHEMA ${quote(emptySchema)}`);
