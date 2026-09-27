@@ -368,7 +368,7 @@ export async function createIncomeBatch(entries: BatchEntry[]) {
 }
 
 export async function bulkUpdateIncomes(ids: string[], updates: {
-  typeId?: string; status?: string; amountUsd?: number; amountArs?: number; exchangeRate?: number; concept?: string;
+  typeId?: string; status?: string; statusDate?: string; amountUsd?: number; amountArs?: number; exchangeRate?: number; concept?: string;
 }) {
   const data: Record<string, unknown> = {};
   if (updates.concept != null) {
@@ -377,7 +377,17 @@ export async function bulkUpdateIncomes(ids: string[], updates: {
     data.concept = trimmed;
   }
   if (updates.typeId) data.typeId = updates.typeId;
-  if (updates.status) data.status = updates.status;
+  if (updates.status) {
+    if (updates.status !== "PAID" && updates.status !== "PENDING") throw new Error("Estado no válido.");
+    if (!updates.statusDate || !/^\d{4}-\d{2}-\d{2}$/.test(updates.statusDate)) {
+      throw new Error("Indica la fecha correspondiente al nuevo estado.");
+    }
+    const statusDate = new Date(`${updates.statusDate}T00:00:00.000Z`);
+    if (Number.isNaN(statusDate.getTime())) throw new Error("La fecha del nuevo estado no es válida.");
+    data.status = updates.status;
+    data.dueDate = updates.status === "PENDING" ? statusDate : null;
+    data.effectiveDate = updates.status === "PAID" ? statusDate : null;
+  }
   if (updates.amountArs != null && updates.exchangeRate != null) {
     const money = computeMoney({ amountArs: updates.amountArs, exchangeRate: updates.exchangeRate });
     data.amountUsd = money.amountUsd;

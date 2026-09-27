@@ -138,7 +138,7 @@ export function IncomeFormModal({
     e.preventDefault(); setError(null); setSaving(true);
     try {
       if (multi) {
-        await onSave({ ...form, batch: rows.map(r => ({ ...r, amountUsd: r.amountUsd || undefined, amountArs: r.amountArs || undefined, exchangeRate: form.useArs ? r.exchangeRate || undefined : undefined })) });
+        await onSave({ ...form, batch: rows.map(r => ({ ...r, amountUsd: form.useArs ? undefined : r.amountUsd || undefined, amountArs: form.useArs ? r.amountArs || undefined : undefined, exchangeRate: form.useArs ? r.exchangeRate || undefined : undefined })) });
       } else { await onSave(form); }
       onClose();
     } catch (err) { setError(err instanceof Error ? err.message : "Error."); }
@@ -181,7 +181,7 @@ export function IncomeFormModal({
                   </Select>
                   {form.status === "PENDING" && <Input type="date" value={form.dueDate} onChange={(e) => setForm(p => ({...p, dueDate: e.target.value}))} required />}
                   {form.status === "PAID" && <Input type="date" value={form.effectiveDate} onChange={(e) => setForm(p => ({...p, effectiveDate: e.target.value}))} required />}
-                  <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.useArs} onChange={(e) => setForm((p) => ({ ...p, useArs: e.target.checked }))} /> Cargar en ARS</label>
+                  <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.useArs} onChange={(e) => setForm((p) => e.target.checked ? ({ ...p, useArs: true, amountUsd: "" }) : ({ ...p, useArs: false, amountArs: "", exchangeRate: "" }))} /> Cargar en ARS</label>
                   {form.useArs ? (
                     <div className="space-y-2 pl-4 border-l-2 border-cobalt/20">
                       <Input placeholder="Monto ARS" type="number" step="any" value={form.amountArs} onChange={(e) => { setForm(p => ({...p, amountArs: e.target.value})); onAmountChange("", e.target.value); }} required />
@@ -209,7 +209,7 @@ export function IncomeFormModal({
                   <Select value={form.status} onChange={(e) => setForm(p => ({...p, status: e.target.value as "PAID"|"PENDING"}))}><option value="PAID">Cobrado</option><option value="PENDING">Pendiente</option></Select>
                   <Input type="date" value={form.status === "PENDING" ? form.dueDate : form.effectiveDate} onChange={(e) => onFirstDateChange(e.target.value)} placeholder="Primera fecha" required />
 
-                  <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.useArs} onChange={(e) => setForm((p) => ({ ...p, useArs: e.target.checked }))} /> Cargar en ARS</label>
+                  <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.useArs} onChange={(e) => { const useArs = e.target.checked; setForm((p) => useArs ? ({ ...p, useArs: true, amountUsd: "" }) : ({ ...p, useArs: false, amountArs: "", exchangeRate: "" })); setRows((prev) => prev.map((r) => useArs ? ({ ...r, amountUsd: "" }) : ({ ...r, amountArs: "", exchangeRate: "" }))); }} /> Cargar en ARS</label>
                   {form.useArs ? (
                     <div className="space-y-2"><Input placeholder="Monto ARS" type="number" step="any" value={form.amountArs} onChange={(e) => { setForm(p => ({...p, amountArs: e.target.value})); onAmountChange("", e.target.value); }} required /><Input placeholder="Tipo de cambio" type="number" step="any" value={form.exchangeRate} onChange={(e) => setForm(p => ({...p, exchangeRate: e.target.value}))} required /></div>
                   ) : (

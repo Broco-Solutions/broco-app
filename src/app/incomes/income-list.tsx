@@ -51,6 +51,7 @@ export function IncomeList({ initialIncomes, projects, clients, incomeTypes }: {
   const [bulkField, setBulkField] = useState("");
   const [bulkValue, setBulkValue] = useState("");
   const [bulkExchangeRate, setBulkExchangeRate] = useState("");
+  const [bulkDate, setBulkDate] = useState("");
   const [showBulkConfirm, setShowBulkConfirm] = useState(false);
   const [bulkError, setBulkError] = useState<string | null>(null);
   const router = useRouter();
@@ -88,8 +89,8 @@ export function IncomeList({ initialIncomes, projects, clients, incomeTypes }: {
       const entries = batch.map(r => ({
         typeId: data.typeId as string, projectId: (data.projectId as string) || null, clientId: (data.clientId as string) || null,
         concept: data.concept as string, notes: (data.notes as string) || null, status: r.status as string,
-        amountUsd: (r.amountUsd as string) ? Number(r.amountUsd) : undefined,
-        amountArs: (r.amountArs as string) ? Number(r.amountArs) : undefined,
+        amountUsd: data.useArs ? undefined : ((r.amountUsd as string) ? Number(r.amountUsd) : undefined),
+        amountArs: data.useArs ? ((r.amountArs as string) ? Number(r.amountArs) : undefined) : undefined,
         exchangeRate: (r.exchangeRate as string) ? Number(r.exchangeRate) : undefined,
         dueDate: r.status === "PENDING" ? (r.date as string) : null,
         effectiveDate: r.status === "PAID" ? (r.date as string) : null,
@@ -98,7 +99,12 @@ export function IncomeList({ initialIncomes, projects, clients, incomeTypes }: {
       if (!result.success) throw new Error(result.message);
       setShowForm(false); setEditing(null); reload();
     } else {
-      const fd = mkFd(data, editing?.id);
+      const fd = mkFd({
+        ...data,
+        amountUsd: data.useArs ? undefined : data.amountUsd,
+        amountArs: data.useArs ? data.amountArs : undefined,
+        exchangeRate: data.useArs ? data.exchangeRate : undefined,
+      }, editing?.id);
       const result = await saveIncome(null, fd);
       if (!result.success) throw new Error(result.message);
       setShowForm(false); setEditing(null); reload();
@@ -190,10 +196,11 @@ export function IncomeList({ initialIncomes, projects, clients, incomeTypes }: {
     else if (bulkField === "status") updates.status = bulkValue;
     else if (bulkField === "amount") updates.amountUsd = Number(bulkValue);
     else if (bulkField === "ars") { updates.amountArs = Number(bulkValue); updates.exchangeRate = Number(bulkExchangeRate); }
+    if (bulkField === "status") updates.statusDate = bulkDate;
     const result = await bulkUpdateIncomes(ids, updates);
     if (!result.success) { setBulkError(result.message); return; }
     setShowBulkConfirm(false);
-    setBulkField(""); setBulkValue(""); setBulkExchangeRate("");
+    setBulkField(""); setBulkValue(""); setBulkExchangeRate(""); setBulkDate("");
     clearSelection();
     reload();
   };
@@ -205,7 +212,7 @@ export function IncomeList({ initialIncomes, projects, clients, incomeTypes }: {
   const typeName = (id: string) => incomeTypes.find(t => t.id === id)?.name ?? "—";
   const bulkFieldLabels: Record<string, string> = { concept: "Concepto", type: "Tipo", status: "Estado", amount: "Monto USD", ars: "Monto ARS + TC" };
   const bulkValueLabels: Record<string, Record<string, string>> = { type: Object.fromEntries(incomeTypes.map(t => [t.id, t.name])), status: { PAID: "Cobrado", PENDING: "Pendiente" } };
-  const bulkDesc = `${bulkFieldLabels[bulkField] ?? "?"} → ${bulkValueLabels[bulkField]?.[bulkValue] ?? bulkValue}`;
+  const bulkDesc = `${bulkFieldLabels[bulkField] ?? "?"} → ${bulkValueLabels[bulkField]?.[bulkValue] ?? bulkValue}${bulkField === "status" && bulkDate ? ` (${bulkDate})` : ""}`;
 
   return (
     <div className="space-y-4">
@@ -317,12 +324,13 @@ export function IncomeList({ initialIncomes, projects, clients, incomeTypes }: {
         count={selected.size}
         totalFiltered={filtered.length}
         onSelectAll={selectAllFiltered}
-        onClear={() => { clearSelection(); setBulkField(""); setBulkValue(""); setBulkExchangeRate(""); }}
+        onClear={() => { clearSelection(); setBulkField(""); setBulkValue(""); setBulkExchangeRate(""); setBulkDate(""); }}
         onApply={() => setShowBulkConfirm(true)}
         field={bulkField} setField={(f) => { setBulkField(f); setBulkValue(""); setBulkExchangeRate(""); }}
         value={bulkValue} setValue={setBulkValue}
         secondaryValue={bulkExchangeRate} setSecondaryValue={setBulkExchangeRate}
         secondaryPlaceholder="TC"
+        dateValue={bulkDate} setDateValue={setBulkDate}
         fields={[
           { value: "concept", label: "Concepto" },
           { value: "type", label: "Tipo" },

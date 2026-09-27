@@ -49,4 +49,24 @@ describe.skipIf(skip)("bulk concept", () => {
   it("rechaza concepto vacío en gastos", async () => {
     await expect(bulkUpdateExpenses(expIds, { concept: " " } as any)).rejects.toThrow(/vacío/);
   });
+
+  it("cambia estado en lote junto con la fecha requerida", async () => {
+    await expect(bulkUpdateIncomes(ids, { status: "PENDING" } as any)).rejects.toThrow(/fecha correspondiente/);
+    await expect(bulkUpdateExpenses(expIds, { status: "PENDING" } as any)).rejects.toThrow(/fecha correspondiente/);
+
+    await bulkUpdateIncomes(ids, { status: "PENDING", statusDate: "2026-10-01" });
+    await bulkUpdateExpenses(expIds, { status: "PENDING", statusDate: "2026-10-01" });
+
+    const pendingIncomes = await prisma.income.findMany({ where: { id: { in: ids } } });
+    const pendingExpenses = await prisma.expense.findMany({ where: { id: { in: expIds } } });
+    expect(pendingIncomes.every((r) => r.status === "PENDING" && r.dueDate && !r.effectiveDate)).toBe(true);
+    expect(pendingExpenses.every((r) => r.status === "PENDING" && r.dueDate && !r.effectiveDate)).toBe(true);
+
+    await bulkUpdateIncomes(ids, { status: "PAID", statusDate: "2026-10-15" });
+    await bulkUpdateExpenses(expIds, { status: "PAID", statusDate: "2026-10-15" });
+    const paidIncomes = await prisma.income.findMany({ where: { id: { in: ids } } });
+    const paidExpenses = await prisma.expense.findMany({ where: { id: { in: expIds } } });
+    expect(paidIncomes.every((r) => r.status === "PAID" && r.effectiveDate && !r.dueDate)).toBe(true);
+    expect(paidExpenses.every((r) => r.status === "PAID" && r.effectiveDate && !r.dueDate)).toBe(true);
+  });
 });

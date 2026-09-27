@@ -47,6 +47,7 @@ export function ExpenseList({ initial, categories: cats, projects: projs, client
   const [bulkField, setBulkField] = useState("");
   const [bulkValue, setBulkValue] = useState("");
   const [bulkExchangeRate, setBulkExchangeRate] = useState("");
+  const [bulkDate, setBulkDate] = useState("");
   const [showBulkConfirm, setShowBulkConfirm] = useState(false);
   const [bulkError, setBulkError] = useState<string | null>(null);
   const router = useRouter();
@@ -147,8 +148,8 @@ export function ExpenseList({ initial, categories: cats, projects: projs, client
           expenseCategoryId: form.expenseCategoryId, projectId: form.projectId || null,
           type: form.type, concept: form.concept, notes: form.notes || null,
           status: r.status,
-          amountUsd: r.amountUsd ? Number(r.amountUsd) : undefined,
-          amountArs: r.amountArs ? Number(r.amountArs) : undefined,
+          amountUsd: form.useArs ? undefined : (r.amountUsd ? Number(r.amountUsd) : undefined),
+          amountArs: form.useArs ? (r.amountArs ? Number(r.amountArs) : undefined) : undefined,
           exchangeRate: form.useArs ? (r.exchangeRate ? Number(r.exchangeRate) : undefined) : undefined,
           dueDate: r.status === "PENDING" ? r.date : null,
           effectiveDate: r.status === "PAID" ? r.date : null,
@@ -229,10 +230,11 @@ export function ExpenseList({ initial, categories: cats, projects: projs, client
     else if (bulkField === "amount") updates.amountUsd = Number(bulkValue);
     else if (bulkField === "category") updates.expenseCategoryId = bulkValue;
     else if (bulkField === "ars") { updates.amountArs = Number(bulkValue); updates.exchangeRate = Number(bulkExchangeRate); }
+    if (bulkField === "status") updates.statusDate = bulkDate;
     const result = await bulkUpdateExpenses(ids, updates);
     if (!result.success) { setBulkError(result.message); return; }
     setShowBulkConfirm(false);
-    setBulkField(""); setBulkValue(""); setBulkExchangeRate("");
+    setBulkField(""); setBulkValue(""); setBulkExchangeRate(""); setBulkDate("");
     clearSelection();
     reload();
   };
@@ -344,7 +346,7 @@ export function ExpenseList({ initial, categories: cats, projects: projs, client
         <Select value={form.status} onChange={(e) => setForm(p => ({...p, status: e.target.value as "PAID"|"PENDING"}))}><option value="PAID">Pagado</option><option value="PENDING">Pendiente</option></Select>
         {form.status === "PENDING" && <Input type="date" value={form.dueDate} onChange={(e) => setForm(p => ({...p, dueDate: e.target.value}))} required />}
         {form.status === "PAID" && <Input type="date" value={form.effectiveDate} onChange={(e) => setForm(p => ({...p, effectiveDate: e.target.value}))} required />}
-        <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.useArs} onChange={(e) => setForm(p => ({...p, useArs: e.target.checked}))} />Cargar en ARS</label>
+        <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.useArs} onChange={(e) => { const useArs = e.target.checked; setForm(p => useArs ? ({...p, useArs: true, amountUsd: ""}) : ({...p, useArs: false, amountArs: "", exchangeRate: ""})); }} />Cargar en ARS</label>
         {form.useArs ? (<><Input placeholder="ARS" type="number" step="any" value={form.amountArs} onChange={(e) => { setForm(p => ({...p, amountArs: e.target.value})); onAmountChange("", e.target.value); }} /><Input placeholder="TC" type="number" step="any" value={form.exchangeRate} onChange={(e) => setForm(p => ({...p, exchangeRate: e.target.value}))} /></>) : (<Input placeholder="USD" type="number" step="any" value={form.amountUsd} onChange={(e) => { setForm(p => ({...p, amountUsd: e.target.value})); onAmountChange(e.target.value, ""); }} />)}
 
         {/* Multi-expense checkbox */}
@@ -363,7 +365,7 @@ export function ExpenseList({ initial, categories: cats, projects: projs, client
             <Select value={form.status} onChange={(e) => setForm(p => ({...p, status: e.target.value as "PAID"|"PENDING"}))}><option value="PAID">Pagado</option><option value="PENDING">Pendiente</option></Select>
             <Input type="date" value={form.status === "PENDING" ? form.dueDate : form.effectiveDate} onChange={(e) => onFirstDateChange(e.target.value)} placeholder="Primera fecha" required />
 
-            <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.useArs} onChange={(e) => setForm((p) => ({ ...p, useArs: e.target.checked }))} /> Cargar en ARS</label>
+            <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.useArs} onChange={(e) => { const useArs = e.target.checked; setForm((p) => useArs ? ({ ...p, useArs: true, amountUsd: "" }) : ({ ...p, useArs: false, amountArs: "", exchangeRate: "" })); setRows((prev) => prev.map((r) => useArs ? ({ ...r, amountUsd: "" }) : ({ ...r, amountArs: "", exchangeRate: "" }))); }} /> Cargar en ARS</label>
             {form.useArs ? (
               <div className="space-y-2"><Input placeholder="Monto ARS" type="number" step="any" value={form.amountArs} onChange={(e) => { setForm(p => ({...p, amountArs: e.target.value})); onAmountChange("", e.target.value); }} required /><Input placeholder="Tipo de cambio" type="number" step="any" value={form.exchangeRate} onChange={(e) => setForm(p => ({...p, exchangeRate: e.target.value}))} required /></div>
             ) : (
@@ -415,12 +417,13 @@ export function ExpenseList({ initial, categories: cats, projects: projs, client
         count={selected.size}
         totalFiltered={filtered.length}
         onSelectAll={selectAllFiltered}
-        onClear={() => { clearSelection(); setBulkField(""); setBulkValue(""); setBulkExchangeRate(""); }}
+        onClear={() => { clearSelection(); setBulkField(""); setBulkValue(""); setBulkExchangeRate(""); setBulkDate(""); }}
         onApply={() => setShowBulkConfirm(true)}
         field={bulkField} setField={(f) => { setBulkField(f); setBulkValue(""); setBulkExchangeRate(""); }}
         value={bulkValue} setValue={setBulkValue}
         secondaryValue={bulkExchangeRate} setSecondaryValue={setBulkExchangeRate}
         secondaryPlaceholder="TC"
+        dateValue={bulkDate} setDateValue={setBulkDate}
         fields={[
           { value: "concept", label: "Concepto" },
           { value: "category", label: "Categoria" },
@@ -441,7 +444,7 @@ export function ExpenseList({ initial, categories: cats, projects: projs, client
       <ConfirmActionModal
         open={showBulkConfirm}
         title={`Actualizar ${selected.size} gasto${selected.size !== 1 ? "s" : ""}`}
-        description={`Cambiar ${({category: "Categoria", type: "Tipo", status: "Estado", amount: "Monto USD"})[bulkField]} a "${bulkValue}"`}
+        description={`Cambiar ${({category: "Categoria", type: "Tipo", status: "Estado", amount: "Monto USD"})[bulkField]} a "${bulkValue}"${bulkField === "status" && bulkDate ? ` con fecha ${bulkDate}` : ""}`}
         confirmLabel="Aplicar"
         isPending={false}
         error={bulkError}
