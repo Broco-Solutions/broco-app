@@ -135,6 +135,7 @@ test.describe("Income modal flows", () => {
 
   test("Cobrar reinicializa moneda e importes al cambiar de ingreso", async ({ page }) => {
     const concept = `Modal currency ${Date.now()}`;
+    const usdConcept = `Modal currency USD ${Date.now()}`;
     await page.goto(BASE + "/incomes", { waitUntil: "load" });
     await page.getByRole("button", { name: "Nuevo ingreso" }).click();
     await page.locator("select").nth(MODAL_TYPE).selectOption({ label: "Otro" });
@@ -157,8 +158,18 @@ test.describe("Income modal flows", () => {
     await expect(page.getByPlaceholder("Tipo de cambio")).toHaveValue("1230");
     await page.getByRole("button", { name: "Cancelar" }).click();
 
-    await page.getByPlaceholder("Buscar concepto…").fill("");
-    const usdRow = page.locator("tr").filter({ hasText: "Date-1790540315148" });
+    await page.getByRole("button", { name: "Nuevo ingreso" }).click();
+    await page.locator("select").nth(MODAL_TYPE).selectOption({ label: "Otro" });
+    await page.locator("select").nth(5).selectOption("PENDING");
+    await page.locator('input[type="date"]').last().fill("2026-09-27");
+    await page.getByPlaceholder("Concepto *").fill(usdConcept);
+    await page.getByPlaceholder("Monto USD").fill("150");
+    await page.getByRole("heading", { name: "Nuevo ingreso" }).locator("..").getByRole("button", { name: "Guardar", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Nuevo ingreso" })).toBeHidden();
+    await page.reload({ waitUntil: "load" });
+    await page.locator("select").first().selectOption("all");
+
+    const usdRow = page.locator("tr").filter({ hasText: usdConcept });
     await expect(usdRow).toBeVisible();
     await usdRow.getByRole("button", { name: "Cobrar" }).click();
     await expect(page.getByPlaceholder("Monto USD")).toHaveValue("150");
@@ -170,7 +181,21 @@ test.describe("Income modal flows", () => {
     await expect(page.getByPlaceholder("Monto ARS")).toHaveValue("123000");
     await expect(page.getByPlaceholder("Monto USD")).toHaveCount(0);
     await page.getByRole("button", { name: "Cancelar" }).click();
-    await createdRow.getByRole("button", { name: "Elim." }).click();
+
+    await page.getByPlaceholder("Buscar concepto…").fill(usdConcept);
+    const usdRowForCleanup = page.locator("tr").filter({ hasText: usdConcept });
+    await expect(usdRowForCleanup).toHaveCount(1);
+    await usdRowForCleanup.getByRole("button", { name: "Elim." }).click();
     await page.getByRole("button", { name: "Eliminar", exact: true }).click();
+    await expect(usdRowForCleanup).toHaveCount(0);
+
+    await page.reload({ waitUntil: "load" });
+    await page.locator("select").first().selectOption("all");
+    await page.getByPlaceholder("Buscar concepto…").fill(concept);
+    const arsRowForCleanup = page.locator("tr").filter({ hasText: concept });
+    await expect(arsRowForCleanup).toHaveCount(1);
+    await arsRowForCleanup.getByRole("button", { name: "Elim." }).click();
+    await page.getByRole("button", { name: "Eliminar", exact: true }).click();
+    await expect(arsRowForCleanup).toHaveCount(0);
   });
 });
