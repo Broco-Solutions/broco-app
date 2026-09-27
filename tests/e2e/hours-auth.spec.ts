@@ -15,6 +15,10 @@ test.describe("Horas V1 - autenticación y permisos", () => {
     await expect(page.getByRole("button", { name: "Ocultar contraseña" })).toBeVisible();
     await page.getByRole("button", { name: "Ocultar contraseña" }).click();
     await expect(password).toHaveAttribute("type", "password");
+    await page.setViewportSize({ width: 375, height: 812 });
+    await page.reload();
+    await expect(page.getByRole("button", { name: "Ingresar" })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(await page.evaluate(() => document.documentElement.clientWidth) + 1);
   });
 
   test("rechaza credenciales inválidas", async ({ page }) => {
