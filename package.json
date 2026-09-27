@@ -13,6 +13,7 @@
     "db:seed": "tsx prisma/seed.ts",
     "data:extract": "tsx scripts/extract-finance-xlsx.ts",
     "db:seed:test": "NODE_ENV=test ALLOW_DESTRUCTIVE_TEST_DB=true DATABASE_URL=postgresql://mock:mock@localhost:9999/broco_finance_prod DATABASE_URL_TEST=postgresql://broco_test:broco_test@localhost:5434/broco_finance_test tsx prisma/seed.ts",
+    "db:test:constraints": "NODE_ENV=test DATABASE_URL=postgresql://mock:mock@localhost:9999/broco_finance_prod DATABASE_URL_TEST=postgresql://broco_test:broco_test@localhost:5434/broco_finance_test tsx scripts/ensure-test-constraints.ts",
     "db:initialize:production": "tsx scripts/initialize-production.ts",
     "bootstrap:admin": "tsx scripts/bootstrap-admin.ts",
     "seed:hours:test": "tsx scripts/seed-hours-test.ts",
