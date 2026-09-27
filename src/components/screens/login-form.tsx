@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { signIn } from "next-auth/react";
+import { safeInternalRedirect } from "@/lib/safe-redirect";
 
 export function LoginForm() {
   const router = useRouter();
@@ -21,7 +22,7 @@ export function LoginForm() {
         setError(null);
         const result = await signIn("credentials", { email, password, redirect: false });
         if (!result || result.error) throw new Error("Correo o contraseña incorrectos.");
-        router.push(searchParams.get("redirectTo") ?? "/");
+        router.push(safeInternalRedirect(searchParams.get("redirectTo")));
         router.refresh();
       } catch (submitError) {
         setError(submitError instanceof Error ? submitError.message : "No se pudo iniciar sesión.");

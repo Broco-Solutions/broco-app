@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { requireRole } from "@/lib/auth";
 import { getClient } from "@/server/services/clients";
 import { listClients } from "@/server/services/clients";
 import { PageHeader } from "@/components/ui/page-header";
@@ -13,6 +14,7 @@ export default async function ClientDetailPage({
 }: {
   params: { id: string };
 }) {
+  await requireRole("ADMIN");
   let client;
   try {
     client = await getClient(params.id);

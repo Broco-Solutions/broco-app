@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { requireRole } from "@/lib/auth";
 import type { ProjectPhase, ProjectTask } from "@prisma/client";
 import { getProject } from "@/server/services/projects";
 import { listPhases } from "@/server/services/project-phases";
@@ -27,6 +28,7 @@ export default async function ProjectDetailPage({
   params: { id: string };
   searchParams: { tab?: string };
 }) {
+  await requireRole("ADMIN");
   let project;
   try {
     project = await getProject(params.id);
