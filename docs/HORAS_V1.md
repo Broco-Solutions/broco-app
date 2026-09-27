@@ -59,7 +59,7 @@ La definición de migración ya declara los índices operativos de usuarios, tok
 Para preparar las tres identidades y dos proyectos de prueba sin guardar contraseñas, usar una variable temporal:
 
 ```bash
-DATABASE_URL_TEST='<solo la URL local de .env.test>' HOURS_TEST_PASSWORD='(secreto temporal de 12+ caracteres)' pnpm seed:hours:test
+NODE_ENV=test DATABASE_URL_TEST='<solo la URL local de .env.test>' HOURS_TEST_PASSWORD='(secreto temporal de 12+ caracteres)' pnpm seed:hours:test
 ```
 
 El script rechaza cualquier host distinto de `localhost:5434` y no imprime la contraseña.

@@ -1,5 +1,10 @@
 # Plan de Simplificación — Sistema Financiero Broco Solutions
 
+> HISTÓRICO / NO OPERATIVO. Este documento conserva decisiones y comandos de
+> una etapa anterior. No describe el runtime actual ni autoriza operaciones
+> sobre producción. Para producción consultar únicamente
+> `docs/PRODUCCION.md`.
+
 ---
 
 ## 1. Resumen ejecutivo

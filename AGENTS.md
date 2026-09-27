@@ -62,6 +62,6 @@ Package manager canónico: **pnpm**. `package-lock.json` está deliberadamente e
 
 - URL = Prisma Accelerate (`db.prisma.io`). `psql` NO conecta. Usar `$executeRawUnsafe` con **una sentencia por call** (multi-sentencia falla con "cannot insert multiple commands into a prepared statement").
 - **Cambios de esquema:** NO usar `prisma migrate dev` ni `prisma migrate deploy` para features (sin `directUrl`, el proxy de Accelerate no ejecuta DDL). En local/test se usa `prisma db push`; en producción, scripts controlados con `$executeRawUnsafe` (una sentencia por call) y pre-checks de seguridad.
-- `scripts/migrate-income-types.sql` (para psql) y `scripts/migrate-production.ts` (runner Prisma) ejecutan la migración de income_types; pre-checks de seguridad (aborta si ya existe o si quedan NULLs).
- - `scripts/migrate-project-share-v1-1.ts` migra share a slug/password/accessVersion; es idempotente (legacy con filas → ABORT, ya migrado → SKIP). **Cleanup V1.1 completado en producción:** `token_hash` e índice legacy eliminados (`--cleanup` dio CLEANUP_COMPLETED y segunda ejecución SKIP); schema final sin `token_hash`.
- - **Deploy V1.1:** 1) configurar `PROJECT_SHARE_*` en Vercel Production, 2) ejecutar migración, 3) segunda ejecución debe dar SKIP, 4) push `main` → Vercel auto-deploy.
+- La única fuente vigente de instrucciones productivas es `docs/PRODUCCION.md`.
+  Las migraciones one-shot históricas ya aplicadas no se ejecutan nuevamente
+  desde este repositorio.

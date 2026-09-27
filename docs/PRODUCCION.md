@@ -1,5 +1,8 @@
 # Produccion — Broco Finance
 
+Este es el único documento operativo vigente para producción. Los planes,
+handoffs y migraciones históricas no reemplazan este procedimiento.
+
 ## Arquitectura resumida
 
 - Next.js 14 App Router + Prisma + PostgreSQL

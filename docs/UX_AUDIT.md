@@ -35,8 +35,8 @@
 
 - No se detectaron P0/P1 nuevos en la auditoría read-only.
 - La autenticación funcional no contiene `APP_PASSWORD` ni `broco_session`.
-  Las menciones restantes están en documentos históricos de planificación y en
-  instrucciones antiguas; no son mecanismos operativos.
+  Las menciones históricas restantes están marcadas como no operativas y no
+  son mecanismos vigentes.
 - No se modificaron entidades ni datos de la SOT. Las asignaciones siguen
   referenciando los `Project` existentes mediante FK.
 
