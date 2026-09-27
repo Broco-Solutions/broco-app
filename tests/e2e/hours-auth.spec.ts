@@ -15,8 +15,8 @@ test.describe("Horas V1 - autenticación y permisos", () => {
   });
 
   test("colaboradores trabajan en proyectos separados", async ({ page }) => {
-    await loginAsCollaboratorA(page); await page.getByRole("button", { name: "Seleccionar cliente" }).click(); await page.getByRole("button", { name: "Horas Test Cliente A" }).click(); await page.getByRole("button", { name: "Seleccionar proyecto" }).click(); await expect(page.getByRole("button", { name: "Horas Test Proyecto A1" })).toBeVisible(); await expect(page.getByRole("button", { name: "Horas Test Proyecto B1" })).toHaveCount(0);
-    await page.getByRole("button", { name: "Salir" }).click(); await loginAsCollaboratorB(page); await page.getByRole("button", { name: "Seleccionar cliente" }).click(); await page.getByRole("button", { name: "Horas Test Cliente B" }).click(); await page.getByRole("button", { name: "Seleccionar proyecto" }).click(); await expect(page.getByRole("button", { name: "Horas Test Proyecto B1" })).toBeVisible();
+    await loginAsCollaboratorA(page); await page.getByRole("button", { name: "Seleccionar cliente" }).click(); await page.getByRole("option", { name: "Horas Test Cliente A" }).click(); await page.getByRole("button", { name: "Seleccionar proyecto" }).click(); await expect(page.getByRole("option", { name: "Horas Test Proyecto A1" })).toBeVisible(); await expect(page.getByRole("option", { name: "Horas Test Proyecto B1" })).toHaveCount(0);
+    await page.getByRole("button", { name: "Salir" }).click(); await loginAsCollaboratorB(page); await page.getByRole("button", { name: "Seleccionar cliente" }).click(); await page.getByRole("option", { name: "Horas Test Cliente B" }).click(); await page.getByRole("button", { name: "Seleccionar proyecto" }).click(); await expect(page.getByRole("option", { name: "Horas Test Proyecto B1" })).toBeVisible();
   });
 
   test("admin puede autenticarse con el flujo real de Auth.js", async ({ page }) => {
@@ -28,8 +28,8 @@ test.describe("Horas V1 - autenticación y permisos", () => {
     await expect(page.getByText("Horas registradas")).toBeVisible();
     await page.goto("/hours/reports"); await expect(page).toHaveURL(/\/hours$/); await page.goto("/hours");
     const entryForm = page.locator("form").filter({ has: page.locator("input[name=operationId]") });
-    await page.getByRole("button", { name: "Seleccionar cliente" }).click(); await page.getByRole("button", { name: "Horas Test Cliente A" }).click();
-    await page.getByRole("button", { name: "Seleccionar proyecto" }).click(); await page.getByRole("button", { name: "Horas Test Proyecto A1" }).click();
+    await page.getByRole("button", { name: "Seleccionar cliente" }).click(); await page.getByRole("option", { name: "Horas Test Cliente A" }).click();
+    await page.getByRole("button", { name: "Seleccionar proyecto" }).click(); await page.getByRole("option", { name: "Horas Test Proyecto A1" }).click();
     await entryForm.locator("input[name=duration]").fill("45"); await entryForm.locator("textarea[name=description]").fill("Carga E2E 45"); await entryForm.getByRole("button", { name: "Guardar", exact: true }).click(); await expect(page.getByRole("status")).toContainText("Registro guardado correctamente"); await expect(page.getByText("Carga E2E 45").last()).toBeVisible(); await expect(page.getByRole("cell", { name: "45 min" }).last()).toBeVisible();
     await entryForm.locator("select[name=unit]").selectOption("HOURS"); await entryForm.locator("input[name=duration]").fill("1,5"); await entryForm.locator("textarea[name=description]").fill("Carga E2E 1,5"); await expect(page.getByText("Equivalencia: 1 h 30 min")).toBeVisible(); await expect(entryForm.getByRole("button", { name: "Guardar", exact: true })).toBeEnabled(); await entryForm.getByRole("button", { name: "Guardar", exact: true }).click(); await expect(page.getByRole("status")).toContainText("Registro guardado correctamente"); await expect(page.getByText("Carga E2E 1,5").last()).toBeVisible();
     const csv = await page.evaluate(async () => (await fetch("/api/hours/export?from=2026-09-27&to=2026-09-27")).text()); expect(csv).toContain("Cliente"); expect(csv).toContain("Proyecto"); expect(csv).toContain("45"); expect(csv).not.toContain("Carga B");

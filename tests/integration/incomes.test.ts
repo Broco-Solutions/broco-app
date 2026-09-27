@@ -1,9 +1,21 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { PrismaClient } from "@prisma/client";
 import { createIncome, updateIncome, deleteIncome, getIncome } from "@/server/services/incomes";
 import { createIncomeBatch } from "@/app/incomes/actions";
 import { createClient } from "@/server/services/clients";
 import { createProject } from "@/server/services/projects";
+
+// These integration tests exercise the action's validation and transaction
+// behavior directly; Auth.js access control is covered by the auth/E2E suite.
+vi.mock("@/lib/auth", () => ({
+  requireRole: vi.fn(async () => ({
+    id: "integration-admin",
+    name: "Integration Admin",
+    email: "integration-admin@test.local",
+    role: "ADMIN",
+    sessionVersion: 0,
+  })),
+}));
 
 const TEST_DB_URL = process.env.DATABASE_URL_TEST;
 const skip = !TEST_DB_URL;
