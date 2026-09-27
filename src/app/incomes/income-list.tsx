@@ -315,7 +315,7 @@ export function IncomeList({ initialIncomes, projects, clients, incomeTypes }: {
         initial={editing ? { id: editing.id, typeId: editing.typeId, concept: editing.concept, notes: editing.notes, status: editing.status, projectId: editing.projectId, clientId: editing.clientId, amountUsd: editing.amountUsd, amountArs: editing.amountArs, exchangeRate: editing.exchangeRate, dueDate: editing.dueDate ? (editing.dueDate instanceof Date ? editing.dueDate.toISOString().slice(0,10) : String(editing.dueDate).slice(0,10)) : null, effectiveDate: editing.effectiveDate ? (editing.effectiveDate instanceof Date ? editing.effectiveDate.toISOString().slice(0,10) : String(editing.effectiveDate).slice(0,10)) : null, client: editing.client, project: editing.project, type: editing.type } : undefined}
         onClose={() => { setShowForm(false); setEditing(null); }} onSave={handleSave} />
 
-      <PayIncomeModal open={!!payTarget} income={payTarget} onClose={() => setPayTarget(null)} onConfirm={handlePay} />
+      <PayIncomeModal key={payTarget?.id ?? "empty"} open={!!payTarget} income={payTarget} onClose={() => setPayTarget(null)} onConfirm={handlePay} />
       <ConfirmActionModal open={!!deleteTarget} title={deleteTarget?.status === "PAID" ? "Eliminar ingreso cobrado" : "Eliminar ingreso"}
         description={deleteTarget?.status === "PAID" ? "Este ingreso ya esta cobrado. ¿Confirmas que queres eliminarlo?" : `¿Eliminar "${deleteTarget?.concept}"?`}
         confirmLabel="Eliminar" isPending={false} error={delError} onClose={() => setDeleteTarget(null)} onConfirm={handleDelete} />
