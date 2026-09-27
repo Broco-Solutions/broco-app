@@ -45,7 +45,12 @@ En Equipo, el administrador crea una persona pendiente y genera un enlace seguro
 
 En local/test verificar primero que `DATABASE_URL` apunta a la base dedicada de pruebas (`localhost:5434`) y nunca a un host remoto. Luego ejecutar `pnpm exec prisma db push` o aplicar la migración `prisma/migrations/20260927090000_add_hours_auth/migration.sql` en la base local. No ejecutar `prisma migrate deploy` ni DDL contra producción desde este cambio.
 
-Para producción queda pendiente un runner controlado con pre-checks, una sentencia por llamada al proxy de Prisma Accelerate, backup/verificación y ventana aprobada. También deben configurarse `AUTH_SECRET` y las variables del bootstrap solo durante la operación inicial; no se documentan sus valores.
+Para producción, el runner controlado usa `DIRECT_URL` directa de Prisma
+Postgres, con prechecks, una sentencia por llamada, backup verificable y
+ventana aprobada. `DATABASE_URL` sigue reservada para el runtime pooled.
+También deben configurarse `AUTH_SECRET` y las variables del bootstrap solo
+durante la operación inicial; no se documentan sus valores. El procedimiento
+completo está únicamente en [`docs/PRODUCCION.md`](PRODUCCION.md).
 
 La definición de migración ya declara los índices operativos de usuarios, tokens de acceso, asignaciones y auditorías de horas; el runner futuro debe verificarlos explícitamente. El límite de intentos de login requiere un mecanismo durable compatible con el despliegue y queda pendiente de una tanda de hardening: no se incorporó un limiter efímero en memoria.
 

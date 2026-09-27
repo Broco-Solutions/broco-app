@@ -8,7 +8,7 @@ async function main() {
   if ((process.env.ADMIN_BOOTSTRAP_PASSWORD ?? "").length < 12) throw new Error("ADMIN_BOOTSTRAP_PASSWORD debe tener al menos 12 caracteres.");
   const email = process.env.ADMIN_BOOTSTRAP_EMAIL!.trim().toLowerCase();
   const target = resolveBootstrapTarget();
-  const prisma = new PrismaClient({ datasources: { db: { url: target.databaseUrl } } });
+  const prisma = new PrismaClient({ datasources: { db: { url: target.directUrl } } });
   try {
     await prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('broco:admin-bootstrap'))`;

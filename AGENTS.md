@@ -60,8 +60,12 @@ Package manager canónico: **pnpm**. `package-lock.json` está deliberadamente e
 
 ## Producción
 
-- URL = Prisma Accelerate (`db.prisma.io`). `psql` NO conecta. Usar `$executeRawUnsafe` con **una sentencia por call** (multi-sentencia falla con "cannot insert multiple commands into a prepared statement").
-- **Cambios de esquema:** NO usar `prisma migrate dev` ni `prisma migrate deploy` para features (sin `directUrl`, el proxy de Accelerate no ejecuta DDL). En local/test se usa `prisma db push`; en producción, scripts controlados con `$executeRawUnsafe` (una sentencia por call) y pre-checks de seguridad.
+- Runtime productivo: `DATABASE_URL` usa la conexión pooled de Prisma Postgres
+  (`pooled.db.prisma.io`). Herramientas administrativas: `DIRECT_URL` usa la
+  conexión directa (`db.prisma.io:5432/postgres?sslmode=require`). No mezclar
+  ambas variables. El runner usa `$executeRawUnsafe` con **una sentencia por
+  call**.
+- **Cambios de esquema:** NO usar `prisma migrate dev` ni `prisma migrate deploy` para features. En local/test se usa `prisma db push`; en producción, scripts controlados con `DIRECT_URL` y `$executeRawUnsafe` (una sentencia por call), con pre-checks de seguridad.
 - La única fuente vigente de instrucciones productivas es `docs/PRODUCCION.md`.
   Las migraciones one-shot históricas ya aplicadas no se ejecutan nuevamente
   desde este repositorio.

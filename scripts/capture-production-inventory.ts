@@ -5,7 +5,7 @@ import { resolveInventoryTarget, resolveLocalTestTarget } from "@/lib/production
 
 async function main() {
   const target = process.argv.includes("--local-test") ? resolveLocalTestTarget() : resolveInventoryTarget();
-  const prisma = new PrismaClient({ datasources: { db: { url: target.databaseUrl } } });
+  const prisma = new PrismaClient({ datasources: { db: { url: target.directUrl } } });
   try {
     const inventory = await captureSotInventory(prisma);
     console.log(JSON.stringify(inventory, null, 2));

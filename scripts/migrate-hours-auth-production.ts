@@ -5,7 +5,7 @@ import { resolveProductionTarget } from "@/lib/production/target";
 
 async function main() {
   const target = resolveProductionTarget();
-  const prisma = new PrismaClient({ datasources: { db: { url: target.databaseUrl } } });
+  const prisma = new PrismaClient({ datasources: { db: { url: target.directUrl } } });
   try {
     console.log("PRODUCTION_TARGET_VALIDATED");
     const result = await runHoursAuthMigration(prisma, { onEvent: (event) => console.log(event) });

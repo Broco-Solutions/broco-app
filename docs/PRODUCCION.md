@@ -11,8 +11,12 @@ Los planes, handoffs y scripts históricos no reemplazan este documento.
   no se hace reset, `db push`, `migrate dev` ni `migrate deploy` en producción.
 - No se recrean ni modifican Clientes, Proyectos, Ingresos, Gastos, tipos,
   categorías, fases, tareas, links ni relaciones históricas.
-- Prisma Accelerate es una capa de acceso, no el proveedor físico del backup.
-  `psql` y `pg_dump` no conectan a `DATABASE_URL` de Accelerate.
+- `DATABASE_URL` es la conexión pooled de runtime de Vercel.
+- `DIRECT_URL` es la conexión directa temporal de Prisma Postgres para
+  inventario, migración y bootstrap; no se guarda en Git ni se usa como URL de
+  runtime.
+- Prisma Postgres no es el proveedor físico del backup. `psql` y `pg_dump` se
+  usan, si corresponde, con la conexión directa y el proveedor aprobado.
 
 ## Inputs operativos obligatorios antes de abrir la ventana
 
@@ -35,14 +39,23 @@ Permanentes:
 
 ```text
 DATABASE_URL
+DIRECT_URL
 AUTH_SECRET
 NEXTAUTH_URL
 PROJECT_SHARE_ENCRYPTION_KEY
 PROJECT_SHARE_SESSION_SECRET
 ```
 
-`DATABASE_URL` sigue siendo la URL de Prisma Accelerate. `NEXTAUTH_URL` no es
-estrictamente indispensable en Vercel para este stack, pero se recomienda
+`DATABASE_URL` debe conservar la URL pooled
+`postgres://...@pooled.db.prisma.io:5432/postgres?sslmode=require` para el
+runtime. Antes de la ventana, obtener `DIRECT_URL` desde Prisma Console con la
+conexión directa
+`postgres://...@db.prisma.io:5432/postgres?sslmode=require`. No copiarla a
+Git, no usarla como `DATABASE_URL` y no usar `vercel env run` como fuente de
+`DIRECT_URL` para esta operación: cargarla temporalmente en el entorno seguro
+del operador y verificarla con el guard.
+
+`NEXTAUTH_URL` no es estrictamente indispensable en Vercel para este stack, pero se recomienda
 configurarla explícitamente con la URL HTTPS canónica para mantener callbacks
 predecibles. `AUTH_SECRET` debe generarse fuera de Git, por ejemplo con
 `openssl rand -base64 32`, y no debe rotarse accidentalmente después del
@@ -99,7 +112,8 @@ de relaciones/agregados: Clientes, Proyectos, Ingresos, Gastos, tipos,
 categorías, fases, tareas, share links, proyectos por cliente, ingresos por
 cliente/proyecto/estado, gastos por proyecto/estado y totales USD agregados.
 
-Con `DATABASE_URL` de producción ya configurada de forma segura, capturar:
+Con `DIRECT_URL` de producción ya configurada temporalmente de forma segura,
+capturar:
 
 ```bash
 ALLOW_PRODUCTION_INVENTORY=true pnpm prod:inventory > /ruta-segura/pre-tiempos-v1.json
@@ -121,10 +135,11 @@ adición esperada.
 
 El runner es `scripts/migrate-hours-auth-production.ts`. Usa un `PrismaClient`
 explícito y `$executeRawUnsafe` con **una sola sentencia por llamada**,
-compatible con Accelerate. Requiere simultáneamente:
+compatible con Prisma Postgres directo. Requiere simultáneamente:
 
 - `ALLOW_PRODUCTION_MIGRATION=true`;
-- URL `prisma+postgres` cuyo host sea `db.prisma.io`;
+- `DIRECT_URL` `postgres://` o `postgresql://` a `db.prisma.io:5432/postgres`
+  con `sslmode=require`;
 - tablas históricas esperadas;
 - estado de esquema reconocido.
 
@@ -178,7 +193,7 @@ ejecutar exactamente el mismo comando una segunda vez: debe informar
 
 Solo después de `MIGRATION_COMPLETED`, inventario coincidente y deploy nuevo
 disponible, configurar temporalmente las variables de bootstrap y ejecutar el
-script desde un entorno autorizado con la misma `DATABASE_URL` productiva:
+script desde un entorno autorizado con `DIRECT_URL` productiva:
 
 ```bash
 pnpm bootstrap:admin

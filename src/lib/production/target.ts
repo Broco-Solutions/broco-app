@@ -1,7 +1,7 @@
 import { assertLocalTestDatabaseUrl } from "@/lib/test-db-guard";
 
 export type ProductionTarget = {
-  databaseUrl: string;
+  directUrl: string;
   mode: "production" | "local-test";
 };
 
@@ -15,20 +15,29 @@ function parseUrl(rawUrl: string, variableName: string): URL {
   }
 }
 
-/**
- * The production runner is deliberately narrower than a generic Prisma
- * script: it only accepts the Accelerate endpoint documented for Broco.
- * A new infrastructure endpoint must be reviewed before it can run DDL.
- */
-export function assertProductionAccelerateUrl(rawUrl: string | undefined): string {
-  if (!rawUrl) throw new Error("DATABASE_URL es obligatoria para una operación productiva.");
+/** Direct Prisma Postgres connection reserved for administrative operations. */
+export function assertProductionDirectUrl(rawUrl: string | undefined): string {
+  if (!rawUrl) throw new Error("DIRECT_URL es obligatoria para una operación productiva.");
 
-  const url = parseUrl(rawUrl, "DATABASE_URL");
-  if (url.protocol !== "prisma+postgres:") {
-    throw new Error("La migración productiva requiere una URL prisma+postgres de Prisma Accelerate.");
+  const url = parseUrl(rawUrl, "DIRECT_URL");
+  if (url.protocol !== "postgres:" && url.protocol !== "postgresql:") {
+    throw new Error("DIRECT_URL debe usar PostgreSQL directo (postgres: o postgresql:).");
   }
   if (url.hostname !== "db.prisma.io") {
-    throw new Error("La migración productiva solo acepta el endpoint Accelerate aprobado (db.prisma.io).");
+    throw new Error("DIRECT_URL solo acepta el host directo aprobado: db.prisma.io.");
+  }
+  if (url.port !== "5432") {
+    throw new Error("DIRECT_URL debe usar el puerto 5432.");
+  }
+  if (url.pathname !== "/postgres") {
+    throw new Error("DIRECT_URL debe apuntar exactamente a la base postgres.");
+  }
+  const sslModes = url.searchParams.getAll("sslmode");
+  if (sslModes.length !== 1 || sslModes[0] !== "require") {
+    throw new Error("DIRECT_URL debe incluir exactamente sslmode=require.");
+  }
+  for (const key of url.searchParams.keys()) {
+    if (key !== "sslmode") throw new Error("DIRECT_URL contiene parámetros no autorizados.");
   }
 
   return rawUrl;
@@ -40,7 +49,7 @@ export function resolveProductionTarget(env: Environment = process.env): Product
   }
 
   return {
-    databaseUrl: assertProductionAccelerateUrl(env.DATABASE_URL),
+    directUrl: assertProductionDirectUrl(env.DIRECT_URL),
     mode: "production",
   };
 }
@@ -51,7 +60,7 @@ export function resolveInventoryTarget(env: Environment = process.env): Producti
   }
 
   return {
-    databaseUrl: assertProductionAccelerateUrl(env.DATABASE_URL),
+    directUrl: assertProductionDirectUrl(env.DIRECT_URL),
     mode: "production",
   };
 }
@@ -63,7 +72,7 @@ export function resolveLocalTestTarget(env: Environment = process.env): Producti
   }
 
   return {
-    databaseUrl: assertLocalTestDatabaseUrl(env.DATABASE_URL_TEST),
+    directUrl: assertLocalTestDatabaseUrl(env.DATABASE_URL_TEST),
     mode: "local-test",
   };
 }
@@ -78,8 +87,8 @@ export function resolveBootstrapTarget(env: Environment = process.env): Producti
     if (env.ALLOW_LOCAL_BOOTSTRAP_TEST !== "true") {
       throw new Error("El bootstrap local requiere ALLOW_LOCAL_BOOTSTRAP_TEST=true.");
     }
-    return { databaseUrl: assertLocalTestDatabaseUrl(env.DATABASE_URL_TEST), mode: "local-test" };
+    return { directUrl: assertLocalTestDatabaseUrl(env.DATABASE_URL_TEST), mode: "local-test" };
   }
 
-  return { databaseUrl: assertProductionAccelerateUrl(env.DATABASE_URL), mode: "production" };
+  return { directUrl: assertProductionDirectUrl(env.DIRECT_URL), mode: "production" };
 }
