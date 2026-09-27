@@ -10,8 +10,9 @@ asignaciones usuario → proyecto. Las anulaciones son lógicas y dejan auditor�
 
 Los colaboradores solo ven Tiempos > Registros, con sus indicadores, filtros y
 registros propios; registran únicamente en proyectos activos asignados. Los
-administradores conservan la aplicación financiera y pueden registrar para
-otra persona. El portal `/p` y el MCP mantienen autenticación y permisos
+administradores conservan la aplicación financiera y pueden registrar para sí
+mismos o para otra persona, siempre en proyectos activos y sin requerir una
+asignación. El portal `/p` y el MCP mantienen autenticación y permisos
 independientes.
 
 La gestión de identidad es global en `/users` y exclusiva de administradores:
@@ -21,9 +22,9 @@ clientes se derivan de esos proyectos existentes.
 
 ## Decisiones
 
-- Auth.js/NextAuth con Credentials y sesión JWT de 12 horas. La cuenta activa se vuelve a consultar en servidor; desactivar incrementa la versión de sesión y bloquea el acceso en el siguiente request. No se acepta `broco_session` ni clave compartida.
-- `bcryptjs` hashea contraseñas; los enlaces de activación son tokens aleatorios, almacenados solo como SHA-256, de un uso y con vencimiento de 24 horas. El token en claro no se persiste ni se registra.
-- La suma diaria se valida dentro de una transacción Serializable con lock advisory por persona/fecha. El máximo es 1440 minutos.
+- Auth.js/NextAuth con Credentials y sesión JWT de 12 horas. La cuenta activa, rol y versión de sesión se vuelven a consultar en servidor; desactivar o cambiar el rol incrementa la versión y bloquea el acceso en el siguiente request. Middleware es navegación temprana; las lecturas y mutaciones administrativas verifican rol en servidor. No se acepta `broco_session` ni clave compartida.
+- `bcryptjs` hashea contraseñas; los enlaces de activación son tokens aleatorios, almacenados solo como SHA-256, de un uso y con vencimiento de 24 horas. Emitir uno nuevo revoca los anteriores; reclamarlo, activar la cuenta e invalidar el resto sucede atómicamente. El token en claro no se persiste ni se registra.
+- La suma diaria se valida dentro de una transacción Serializable con lock advisory por persona/fecha. El máximo es 1440 minutos. La fecha operativa usa `America/Argentina/Cordoba`, se valida como fecha calendario real y las correcciones usan control de versión para no sobrescribir cambios concurrentes.
 - `TimeEntry` separa la persona que trabajó (`userId`) de quien cargó o corrigió (`createdById`/`modifiedById`) y conserva auditoría before/after.
 
 ## Acceso inicial
@@ -41,6 +42,8 @@ En Equipo, el administrador crea una persona pendiente y genera un enlace seguro
 En local/test verificar primero que `DATABASE_URL` apunta a la base dedicada de pruebas (`localhost:5434`) y nunca a un host remoto. Luego ejecutar `pnpm exec prisma db push` o aplicar la migración `prisma/migrations/20260927090000_add_hours_auth/migration.sql` en la base local. No ejecutar `prisma migrate deploy` ni DDL contra producción desde este cambio.
 
 Para producción queda pendiente un runner controlado con pre-checks, una sentencia por llamada al proxy de Prisma Accelerate, backup/verificación y ventana aprobada. También deben configurarse `AUTH_SECRET` y las variables del bootstrap solo durante la operación inicial; no se documentan sus valores.
+
+La definición de migración ya declara los índices operativos de usuarios, tokens de acceso, asignaciones y auditorías de horas; el runner futuro debe verificarlos explícitamente. El límite de intentos de login requiere un mecanismo durable compatible con el despliegue y queda pendiente de una tanda de hardening: no se incorporó un limiter efímero en memoria.
 
 ## Pruebas locales
 
@@ -75,11 +78,8 @@ El script rechaza cualquier host distinto de `localhost:5434` y no imprime la co
   `/hours/team` en escritorio y móvil, sin errores de consola observados.
   La CLI `agent-browser` no está instalada en este entorno; se usó Playwright
   directamente como fallback.
-- La suite completa existente ejecuta 356/382 tests PASS. Los 26 fallos son
-  preexistentes o de fixtures compartidos: constraints SQL no aplicadas en la
-  base histórica, duplicados case-insensitive, reconciliación con totales
-  alterados por datos de prueba y dos casos batch de ingresos. No corresponden
-  a Horas y se mantienen separados de la validación específica.
+- La baseline de tests se mantiene verde; no se acepta una baseline roja para
+  publicar Tiempos.
 
 ## Preparación para producción
 

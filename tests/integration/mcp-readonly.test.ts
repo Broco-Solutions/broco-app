@@ -290,7 +290,7 @@ describe.skipIf(!hasTestDatabase)("MCP solo lectura contra PostgreSQL de test", 
   });
 
   it("devuelve detalle financiero paginado de un proyecto real", async () => {
-    const project = await prisma.project.findFirst({ select: { id: true } });
+    const project = await prisma.project.findFirst({ where: { name: { not: { contains: "Horas" } } }, select: { id: true } });
     expect(project).not.toBeNull();
 
     const result = await getProjectDetail({
@@ -309,7 +309,7 @@ describe.skipIf(!hasTestDatabase)("MCP solo lectura contra PostgreSQL de test", 
   });
 
   it("devuelve la planificación existente sin inventar responsables ni horas", async () => {
-    const project = await prisma.project.findFirst({ select: { id: true } });
+    const project = await prisma.project.findFirst({ where: { name: { not: { contains: "Horas" } } }, select: { id: true } });
     expect(project).not.toBeNull();
 
     const result = await getProjectPlanning({

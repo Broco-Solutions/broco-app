@@ -30,23 +30,11 @@ npx prisma generate
 
 La URL de produccion es Prisma Accelerate (`db.prisma.io`), sin `directUrl`, por lo que **no** se usa `prisma migrate deploy`. Los cambios de esquema se aplican con scripts controlados que ejecutan `$executeRawUnsafe` con **una sentencia por llamada** (ver seccion "Produccion" en AGENTS.md).
 
-## Ejecucion del seed inicial
+## Seeds y operaciones destructivas
 
-El seed esta protegido. Solo se ejecuta en entorno `NODE_ENV=test` con `ALLOW_DESTRUCTIVE_TEST_DB=true`.
+No ejecutar `prisma/seed.ts`, `prisma db push`, `prisma migrate dev`, `prisma migrate deploy`, `reset` ni `truncate` contra producción. El seed canónico está restringido a `NODE_ENV=test`, `ALLOW_DESTRUCTIVE_TEST_DB=true` y la base local de test.
 
-Para aplicarlo en produccion (primera vez, base vacia):
-
-```bash
-npx tsx prisma/seed.ts
-```
-
-Antes de ejecutar, verificar que la base esta vacia:
-
-```bash
-npx prisma db execute --stdin <<< "SELECT count(*) FROM clients;"
-```
-
-Si hay datos, no ejecutar el seed.
+La Source of Truth productiva no se recrea, no se inicializa mediante seeds y no se modifica mediante comandos de desarrollo.
 
 ## Build
 
@@ -61,7 +49,7 @@ Configurar en Vercel (o el proveedor elegido):
 1. Conectar repositorio.
 2. Variables de entorno: `DATABASE_URL`, `AUTH_SECRET`, `PROJECT_SHARE_ENCRYPTION_KEY`, `PROJECT_SHARE_SESSION_SECRET`.
 3. Comando de build: `prisma generate && next build`.
-4. Comando post-deploy: aplicar cambios de esquema con scripts controlados (`$executeRawUnsafe`, una sentencia por llamada); no usar `prisma migrate deploy` (sin `directUrl`).
+4. Comando post-deploy: no ejecutar DDL automático. Aplicar cambios de esquema únicamente mediante un runner controlado, revisado e idempotente (`$executeRawUnsafe`, una sentencia por llamada); no usar `prisma migrate deploy` (sin `directUrl`).
 5. Dominio configurado.
 
 ## Smoke test posterior
