@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import { assertLocalTestDatabaseUrl } from "@/lib/test-db-guard";
 
 const testUrl = process.env.DATABASE_URL_TEST;
 const appUrl = process.env.DATABASE_URL;
@@ -11,14 +12,7 @@ function requireLocalTestDatabase() {
     throw new Error("DATABASE_URL y DATABASE_URL_TEST deben existir y ser distintas.");
   }
 
-  const parsed = new URL(testUrl);
-  if (
-    parsed.hostname !== "localhost" ||
-    parsed.port !== "5434" ||
-    parsed.pathname !== "/broco_finance_test"
-  ) {
-    throw new Error("ABORTO: la URL no apunta exactamente a localhost:5434/broco_finance_test.");
-  }
+  assertLocalTestDatabaseUrl(testUrl);
 }
 
 async function main() {

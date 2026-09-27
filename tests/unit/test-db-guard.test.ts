@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import {
+  assertLocalTestDatabaseUrl,
   assertReadOnlyTestDatabase,
   assertTestDatabase,
 } from "@/lib/test-db-guard";
@@ -8,7 +9,7 @@ const VALID_ENV = {
   NODE_ENV: "test",
   ALLOW_DESTRUCTIVE_TEST_DB: "true",
   DATABASE_URL: "postgresql://user:pass@localhost:5432/prod_db",
-  DATABASE_URL_TEST: "postgresql://broco_test:broco_test@localhost:5433/broco_finance_test",
+  DATABASE_URL_TEST: "postgresql://broco_test:broco_test@localhost:5434/broco_finance_test",
 };
 
 function setEnv(vars: Record<string, string | undefined>) {
@@ -86,22 +87,17 @@ describe("assertTestDatabase", () => {
     expect(message).toContain("identica");
   });
 
-  it("advierte si el nombre de la base de test no contiene test", () => {
-    const warnSpy = { called: false };
-    const originalWarn = console.warn;
-    console.warn = (msg: string) => {
-      if (msg.includes("test-db-guard")) warnSpy.called = true;
-    };
+  it.each([
+    ["remote", "postgresql://user:secret@db.prisma.io:5432/broco_finance_test"],
+    ["Prisma Accelerate", "prisma+postgres://accelerate.invalid/broco_finance_test"],
+    ["puerto incorrecto", "postgresql://broco_test:broco_test@localhost:5433/broco_finance_test"],
+    ["DB incorrecta", "postgresql://broco_test:broco_test@localhost:5434/other_test"],
+  ])("rechaza destino no autorizado (%s)", (_label, value) => {
+    expect(() => assertLocalTestDatabaseUrl(value)).toThrow();
+  });
 
-    setEnv({
-      DATABASE_URL_TEST: "postgresql://broco_test:broco_test@localhost:5433/production_clone",
-    });
-
-    const result = assertTestDatabase();
-    expect(result.testDbName).toBe("production_clone");
-
-    console.warn = originalWarn;
-    expect(warnSpy.called).toBe(true);
+  it("acepta únicamente la DB local autorizada", () => {
+    expect(assertLocalTestDatabaseUrl(VALID_ENV.DATABASE_URL_TEST)).toBe(VALID_ENV.DATABASE_URL_TEST);
   });
 });
 

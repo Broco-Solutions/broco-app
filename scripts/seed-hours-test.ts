@@ -1,12 +1,11 @@
 import "dotenv/config";
 import { hash } from "bcryptjs";
-import { prisma } from "@/server/prisma";
+import { PrismaClient } from "@prisma/client";
+import { assertLocalTestDatabaseUrl } from "@/lib/test-db-guard";
 
 async function main() {
-  const rawUrl = process.env.DATABASE_URL_TEST;
-  if (!rawUrl) throw new Error("DATABASE_URL_TEST es obligatoria.");
-  const dbUrl = new URL(rawUrl);
-  if (dbUrl.hostname !== "localhost" || dbUrl.port !== "5434" || dbUrl.pathname.slice(1) !== "broco_finance_test") throw new Error("Este script solo acepta localhost:5434/broco_finance_test.");
+  const databaseUrl = assertLocalTestDatabaseUrl(process.env.DATABASE_URL_TEST);
+  const prisma = new PrismaClient({ datasources: { db: { url: databaseUrl } } });
   const password = process.env.HOURS_TEST_PASSWORD;
   if (!password || password.length < 12) throw new Error("HOURS_TEST_PASSWORD debe tener al menos 12 caracteres y solo se usa en el entorno de test.");
   const passwordHash = await hash(password, 4);
@@ -19,6 +18,10 @@ async function main() {
   await prisma.hourAssignment.upsert({ where: { userId_projectId: { userId: collaboratorA.id, projectId: projectA.id } }, update: {}, create: { userId: collaboratorA.id, projectId: projectA.id } });
   await prisma.hourAssignment.upsert({ where: { userId_projectId: { userId: collaboratorB.id, projectId: projectB.id } }, update: {}, create: { userId: collaboratorB.id, projectId: projectB.id } });
   console.log(JSON.stringify({ adminId: admin.id, collaboratorAId: collaboratorA.id, collaboratorBId: collaboratorB.id, projectAId: projectA.id, projectBId: projectB.id }));
+  await prisma.$disconnect();
 }
 
-main().finally(() => prisma.$disconnect());
+main().catch((error) => {
+  console.error("No se pudo preparar el fixture de Horas:", error instanceof Error ? error.message : error);
+  process.exitCode = 1;
+});

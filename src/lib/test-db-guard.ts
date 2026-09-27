@@ -21,6 +21,43 @@ function extractDbName(rawUrl: string): string | null {
   }
 }
 
+const LOCAL_TEST_HOST = "localhost";
+const LOCAL_TEST_PORT = "5434";
+const LOCAL_TEST_DATABASE = "broco_finance_test";
+
+/**
+ * Returns only the explicitly authorized test target. This guard is intended
+ * for scripts that may write fixtures, so a merely different or test-looking
+ * database name is not sufficient.
+ */
+export function assertLocalTestDatabaseUrl(rawUrl: string | undefined): string {
+  if (!rawUrl) {
+    throw new Error("DATABASE_URL_TEST es obligatoria.");
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(rawUrl);
+  } catch {
+    throw new Error("DATABASE_URL_TEST no es una URL válida.");
+  }
+
+  if (parsed.protocol !== "postgres:" && parsed.protocol !== "postgresql:") {
+    throw new Error("DATABASE_URL_TEST debe usar PostgreSQL.");
+  }
+  if (parsed.hostname !== LOCAL_TEST_HOST) {
+    throw new Error("DATABASE_URL_TEST debe apuntar exactamente a localhost.");
+  }
+  if (parsed.port !== LOCAL_TEST_PORT) {
+    throw new Error("DATABASE_URL_TEST debe usar el puerto 5434.");
+  }
+  if (parsed.pathname !== `/${LOCAL_TEST_DATABASE}`) {
+    throw new Error("DATABASE_URL_TEST debe apuntar exactamente a broco_finance_test.");
+  }
+
+  return rawUrl;
+}
+
 /**
  * Fails closed before read-only integration tests use the application's shared
  * Prisma client. It deliberately accepts only the isolated local test database.
@@ -43,28 +80,7 @@ export function assertReadOnlyTestDatabase() {
     );
   }
 
-  let parsed: URL;
-  try {
-    parsed = new URL(testDatabaseUrl);
-  } catch {
-    throw new Error("DATABASE_URL_TEST no es una URL válida para integración MCP.");
-  }
-
-  if (!["postgres:", "postgresql:"].includes(parsed.protocol)) {
-    throw new Error("DATABASE_URL_TEST debe usar PostgreSQL para integración MCP.");
-  }
-  if (!["localhost", "127.0.0.1", "[::1]"].includes(parsed.hostname)) {
-    throw new Error(
-      "DATABASE_URL_TEST debe apuntar a localhost para integración MCP.",
-    );
-  }
-
-  const databaseName = extractDbName(testDatabaseUrl);
-  if (!databaseName?.toLowerCase().includes("test")) {
-    throw new Error(
-      'El nombre de DATABASE_URL_TEST debe contener "test" para integración MCP.',
-    );
-  }
+  const databaseName = extractDbName(assertLocalTestDatabaseUrl(testDatabaseUrl));
 
   return { databaseName };
 }
@@ -104,16 +120,11 @@ export function assertTestDatabase() {
     );
   }
 
-  const testDbName = extractDbName(testDbUrl);
-  if (testDbName && !testDbName.toLowerCase().includes("test")) {
-    console.warn(
-      `[test-db-guard] El nombre de la base de test (${testDbName}) no contiene "test". ` +
-        "Verifica que no sea una base productiva.",
-    );
-  }
+  const validatedTestDbUrl = assertLocalTestDatabaseUrl(testDbUrl);
+  const testDbName = extractDbName(validatedTestDbUrl);
 
   return {
-    testDbUrl,
+    testDbUrl: validatedTestDbUrl,
     testDbName,
     nodeEnv,
   };
