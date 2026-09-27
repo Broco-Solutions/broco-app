@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { createTimeEntry, updateTimeEntry, voidTimeEntry } from "@/server/services/hours";
 
@@ -17,10 +18,11 @@ export async function saveTimeEntry(_prev: Result | null, formData: FormData): P
     const exact = unit === "HOURS" ? amount * 60 : amount;
     const minutes = Math.round(exact);
     if (minutes !== exact) throw new Error(`La duración se redondearía a ${minutes} minutos. Ajustá el valor antes de guardar.`);
-    const result = await createTimeEntry(actor, { userId: String(formData.get("userId") || actor.id), projectId: String(formData.get("projectId")), workDate: String(formData.get("workDate")), minutes, description: String(formData.get("description") ?? ""), referenceUrl: formData.get("referenceUrl") ? String(formData.get("referenceUrl")) : null, idempotencyKey: String(formData.get("operationId")) });
-    revalidatePath("/hours"); revalidatePath("/hours/reports");
-    return { success: true, id: result.id, reset: formData.get("saveMode") === "another" };
+    await createTimeEntry(actor, { userId: String(formData.get("userId") || actor.id), projectId: String(formData.get("projectId")), workDate: String(formData.get("workDate")), minutes, description: String(formData.get("description") ?? ""), referenceUrl: formData.get("referenceUrl") ? String(formData.get("referenceUrl")) : null, idempotencyKey: String(formData.get("operationId")) });
   } catch (error) { return { success: false, message: error instanceof Error ? error.message : "No se pudo guardar." }; }
+  revalidatePath("/hours"); revalidatePath("/hours/reports");
+  const params = new URLSearchParams({ saved: "1", clientId: String(formData.get("clientId") ?? ""), projectId: String(formData.get("projectId") ?? ""), workDate: String(formData.get("workDate") ?? "") });
+  redirect(`/hours?${params.toString()}`);
 }
 
 export async function voidEntry(formData: FormData): Promise<void> {

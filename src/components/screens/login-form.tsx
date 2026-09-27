@@ -45,7 +45,7 @@ export function LoginForm() {
           type="password"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
-          placeholder="Ingresá la clave compartida"
+          placeholder="Ingresá tu contraseña"
           className="h-11"
           autoComplete="current-password"
         />

@@ -53,7 +53,7 @@ export function Header({ role }: { role?: "ADMIN" | "COLLABORATOR" }) {
           <button className="absolute inset-0 bg-black/50" onClick={() => setMobileMenuOpen(false)} />
           <div className="absolute inset-x-3 top-14 max-h-[80vh] overflow-y-auto rounded-xl border border-gray-200 bg-white p-4 shadow-xl">
             <nav className="space-y-1">
-              {navigationItems.filter((item) => role === "ADMIN" || (item.href.startsWith("/hours") && item.href !== "/hours/team")).map((item) => {
+              {navigationItems.filter((item) => role === "ADMIN" || item.href === "/hours").map((item) => {
                 const active = pathname === item.href || pathname.startsWith(item.href + "/");
                 return (
                   <Link key={item.href} href={item.href} prefetch

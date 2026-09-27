@@ -38,8 +38,8 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  const isFinancePath = pathname === "/" || ["/clients", "/projects", "/incomes", "/expenses"].some((path) => pathname === path || pathname.startsWith(`${path}/`));
-  if (session.role === "COLLABORATOR" && isFinancePath) {
+  const isRestrictedAdminPath = pathname === "/" || ["/clients", "/projects", "/incomes", "/expenses", "/users", "/hours/team", "/hours/reports"].some((path) => pathname === path || pathname.startsWith(`${path}/`));
+  if (session.role === "COLLABORATOR" && isRestrictedAdminPath) {
     return isApiRequest ? NextResponse.json({ error: "No autorizado." }, { status: 403 }) : NextResponse.redirect(new URL("/hours", request.url));
   }
 

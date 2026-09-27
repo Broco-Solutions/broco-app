@@ -45,7 +45,7 @@ Package manager canónico: **pnpm**. `package-lock.json` está deliberadamente e
 - `DataTable`: `table-fixed` + colGroup %, `w-full` (sin `min-w-max`). Los `colGroup` suman 100%.
 - `SearchableSelect` es un combobox custom (button + dropdown + input), NO un `<select>` nativo. Playwright: click en button → option en el dropdown.
 - Índices de `<select>` nativos en tests dependen del layout de filtros: status y type son nativos; Cliente/Proyecto son SearchableSelect.
-- E2E agregan cookie `broco_session=ok` (auth del app).
+- E2E usan login real de Auth.js con cuentas locales de prueba; no usar cookies compartidas.
 - Ingresos y Gastos soportan "Agregar varios" (batch rows) con estado `multi`, `count`, `interval`, `rows`.
 
 ## Portal público del cliente (/p)

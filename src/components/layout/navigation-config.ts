@@ -12,7 +12,8 @@ export const navigationItems = [
   { href: "/projects", label: "Proyectos", icon: Layers },
   { href: "/incomes", label: "Ingresos", icon: CircleDollarSign },
   { href: "/expenses", label: "Gastos", icon: Activity },
-  { href: "/hours", label: "Horas", icon: BriefcaseBusiness },
-  { href: "/hours/reports", label: "Reportes de horas", icon: Activity },
-  { href: "/hours/team", label: "Equipo", icon: BriefcaseBusiness },
+  { href: "/hours", label: "Tiempos", icon: BriefcaseBusiness },
+  { href: "/hours/reports", label: "Reportes", icon: Activity },
+  { href: "/hours/team", label: "Asignaciones", icon: BriefcaseBusiness },
+  { href: "/users", label: "Administración", icon: BriefcaseBusiness },
 ] as const;

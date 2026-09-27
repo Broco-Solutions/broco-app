@@ -1,10 +1,23 @@
-# Horas v1
+# Tiempos v1
 
 ## Alcance
 
-El módulo independiente `/hours` permite registrar minutos normalizados por persona, cliente y proyecto, consultar registros, reportar horas registradas y exportar el detalle filtrado a CSV. `/hours/team` es exclusivo de administradores y administra usuarios, activación y asignaciones usuario → proyecto. Las anulaciones son lógicas y dejan auditoría.
+El módulo independiente `/hours`, presentado en la interfaz como **Tiempos**,
+permite registrar minutos normalizados por persona, cliente y proyecto,
+consultar registros, reportar horas registradas y exportar el detalle filtrado
+a CSV. `/hours/team` es exclusivo de administradores y contiene únicamente
+asignaciones usuario → proyecto. Las anulaciones son lógicas y dejan auditoría.
 
-Los colaboradores solo ven Horas y Reportes de horas, registran para sí mismos y únicamente en proyectos activos asignados. Los administradores conservan la aplicación financiera y pueden registrar para otra persona. El portal `/p` y el MCP mantienen autenticación y permisos independientes.
+Los colaboradores solo ven Tiempos > Registros, con sus indicadores, filtros y
+registros propios; registran únicamente en proyectos activos asignados. Los
+administradores conservan la aplicación financiera y pueden registrar para
+otra persona. El portal `/p` y el MCP mantienen autenticación y permisos
+independientes.
+
+La gestión de identidad es global en `/users` y exclusiva de administradores:
+nombre, correo, rol, estado, activación y edición básica de la cuenta. Horas
+mantiene `/hours/team` únicamente para asignar proyectos a colaboradores; los
+clientes se derivan de esos proyectos existentes.
 
 ## Decisiones
 
@@ -55,6 +68,9 @@ El script rechaza cualquier host distinto de `localhost:5434` y no imprime la co
   de proyectos con horas.
 - `pnpm test:e2e`: 24/24 PASS con administrador y dos colaboradores de test;
   se migraron los escenarios legacy a login real.
+- En la navegación actual, ADMIN dispone de Tiempos > Registros, Reportes y
+  Asignaciones; COLLABORATOR dispone únicamente de Tiempos > Registros, con
+  KPIs y filtros personales dentro de la misma pantalla.
 - Verificación visual Playwright: `/login`, `/hours`, `/hours/reports` y
   `/hours/team` en escritorio y móvil, sin errores de consola observados.
   La CLI `agent-browser` no está instalada en este entorno; se usó Playwright
