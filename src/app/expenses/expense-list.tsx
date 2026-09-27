@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useTransition } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -40,7 +40,8 @@ export function ExpenseList({ initial, categories: cats, projects: projs, client
   const [showCatMgmt, setShowCatMgmt] = useState(false);
   const [catForm, setCatForm] = useState({ id: "", name: "" }); const [catError, setCatError] = useState<string | null>(null);
   const [catDelTarget, setCatDelTarget] = useState<Cat | null>(null);
-  const [_, stt] = useTransition();
+  const [catDelError, setCatDelError] = useState<string | null>(null);
+  const [paySaving, setPaySaving] = useState(false); const [payError, setPayError] = useState<string | null>(null);
   // Bulk selection
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkField, setBulkField] = useState("");
@@ -169,14 +170,14 @@ export function ExpenseList({ initial, categories: cats, projects: projs, client
   };
 
   const [payForm, setPayForm] = useState({ effectiveDate: new Date().toISOString().slice(0,10), useArs: false, amountUsd: "", amountArs: "", exchangeRate: "" });
-  const openPay = (e: E) => { setPayTarget(e); setPayForm({ effectiveDate: new Date().toISOString().slice(0,10), useArs: e.amountArs != null, amountUsd: e.amountUsd ? String(e.amountUsd) : "", amountArs: e.amountArs ? String(e.amountArs) : "", exchangeRate: e.exchangeRate ? String(e.exchangeRate) : "" }); };
-  const handlePay = async (ev: React.FormEvent) => { ev.preventDefault(); const fd = new FormData(); fd.set("id", payTarget!.id); fd.set("effectiveDate", payForm.effectiveDate);
+  const openPay = (e: E) => { setPayTarget(e); setPayError(null); setPayForm({ effectiveDate: new Date().toISOString().slice(0,10), useArs: e.amountArs != null, amountUsd: e.amountUsd ? String(e.amountUsd) : "", amountArs: e.amountArs ? String(e.amountArs) : "", exchangeRate: e.exchangeRate ? String(e.exchangeRate) : "" }); };
+  const handlePay = async (ev: React.FormEvent) => { ev.preventDefault(); if (!payTarget || paySaving) return; setPayError(null); setPaySaving(true); const fd = new FormData(); fd.set("id", payTarget.id); fd.set("effectiveDate", payForm.effectiveDate);
     if (payForm.useArs) { fd.set("amountArs", payForm.amountArs); fd.set("exchangeRate", payForm.exchangeRate); } else fd.set("amountUsd", payForm.amountUsd);
     const result = await payExpense(null, fd);
-    if (result.success) { setPayTarget(null); reload(); } else { setFormErr(result.message); } };
+    if (result.success) { setPayTarget(null); reload(); } else { setPayError(result.message); } setPaySaving(false); };
   const handleDelete = async () => { if (!delTarget) return; setDelError(null); const fd = new FormData(); fd.set("id", delTarget.id); const result = await removeExpense(null, fd); if (!result.success) { setDelError(result.message); return; } setDelTarget(null); reload(); };
-  const handleCatSave = async (ev: React.FormEvent) => { ev.preventDefault(); setCatError(null); const fd = new FormData(); if (catForm.id) fd.set("id", catForm.id); fd.set("name", catForm.name); stt(() => { saveCategory(null, fd); }); setCatForm({ id: "", name: "" }); reload(); };
-  const handleCatDel = () => { if (!catDelTarget) return; const fd = new FormData(); fd.set("id", catDelTarget.id); stt(() => { removeCategory(null, fd); }); setCatDelTarget(null); reload(); };
+  const handleCatSave = async (ev: React.FormEvent) => { ev.preventDefault(); setCatError(null); const fd = new FormData(); if (catForm.id) fd.set("id", catForm.id); fd.set("name", catForm.name); const result = await saveCategory(null, fd); if (!result.success) { setCatError(result.message); return; } setCatForm({ id: "", name: "" }); reload(); };
+  const handleCatDel = async () => { if (!catDelTarget) return; setCatDelError(null); const fd = new FormData(); fd.set("id", catDelTarget.id); const result = await removeCategory(null, fd); if (!result.success) { setCatDelError(result.message); return; } setCatDelTarget(null); reload(); };
 
   const filtered = [...expenses]
     .filter((e) => {
@@ -264,7 +265,7 @@ export function ExpenseList({ initial, categories: cats, projects: projs, client
         <span className="text-gray-500">Total filtrado · <span className="font-medium">{filtered.length} movimientos</span></span>
         <span className="font-bold tabular-nums text-gray-900">{formatUsd(filteredExpTotal)}</span>
       </div>
-      {(dateFrom || dateTo || fStatus !== "all" || fType || fCat || fProj) && (
+      {(dateFrom || dateTo || fStatus !== "all" || fType || fCat || fProj || search) && (
         <div className="flex items-center gap-2 flex-wrap">
           {dateFrom && dateTo && <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded">{dateFrom.split("-").reverse().join("/")} – {dateTo.split("-").reverse().join("/")}</span>}
           {fStatus !== "all" && <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">{fStatus === "PAID" ? "Pagados" : fStatus === "PENDING" ? "Pendientes" : "Vencidos"}</span>}
@@ -279,7 +280,9 @@ export function ExpenseList({ initial, categories: cats, projects: projs, client
           colGroup={<colgroup><col style={{width:"3%"}} /><col style={{width:"14%"}} /><col style={{width:"13%"}} /><col style={{width:"13%"}} /><col style={{width:"7%"}} /><col style={{width:"8%"}} /><col style={{width:"9%"}} /><col style={{width:"10%"}} /><col style={{width:"11%"}} /><col style={{width:"12%"}} /></colgroup>}
           footer={<tr className="bg-gray-50 font-semibold"><td className="px-4 py-2.5 text-xs text-gray-500">Total filtrado · {filtered.length} mov.</td><td /><td /><td /><td /><td /><td /><td className="px-4 py-2.5 text-sm text-right tabular-nums">{formatUsd(filteredExpTotal)}</td><td /><td /></tr>}
         >
-          {filtered.map(e => (
+          {filtered.length === 0 ? <tr><td colSpan={10} className="px-4 py-8 text-center text-sm text-gray-500">
+            {search || dateFrom || dateTo || fType || fCat || fProj || fStatus !== "all" ? "No hay gastos para los filtros actuales." : "Todavía no hay gastos."}
+          </td></tr> : filtered.map(e => (
             <tr key={e.id}>
               <td className="px-2 py-2.5"><input type="checkbox" checked={selected.has(e.id)} onChange={() => toggleSelect(e.id)} className="h-3.5 w-3.5" /></td>
               <td className="px-4 py-2.5 text-sm align-middle"><div className="line-clamp-2 break-words" title={e.concept}>{e.concept}</div></td>
@@ -324,7 +327,9 @@ export function ExpenseList({ initial, categories: cats, projects: projs, client
             </div>
           </div>
         ))}
-        {filtered.length === 0 && <p className="text-center text-gray-400 text-sm py-8">Sin gastos.</p>}
+        {filtered.length === 0 && <p className="text-center text-gray-500 text-sm py-8">
+          {search || dateFrom || dateTo || fType || fCat || fProj || fStatus !== "all" ? "No hay gastos para los filtros actuales." : "Todavía no hay gastos."}
+        </p>}
       </div>
 
       {/* Expense form modal */}
@@ -388,10 +393,11 @@ export function ExpenseList({ initial, categories: cats, projects: projs, client
       {/* Pay modal */}
       {payTarget && <ModalPortal><div className="fixed inset-0 z-[90] overflow-y-auto"><button className="fixed inset-0 bg-black/50" onClick={() => setPayTarget(null)} /><div className="relative flex min-h-full items-center justify-center p-4"><div className="w-full max-w-sm rounded-xl bg-white p-5 shadow-xl overflow-x-hidden"><h2 className="text-lg font-bold">Pagar</h2><p className="text-sm text-gray-500 mt-1">{payTarget.concept}</p>
       <form onSubmit={handlePay} className="mt-4 space-y-3">
-        <Input type="date" value={payForm.effectiveDate} onChange={(e) => setPayForm(p => ({...p, effectiveDate: e.target.value}))} required />
+        <Input aria-label="Fecha de pago" type="date" value={payForm.effectiveDate} onChange={(e) => setPayForm(p => ({...p, effectiveDate: e.target.value}))} required />
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={payForm.useArs} onChange={(e) => setPayForm(p => ({...p, useArs: e.target.checked}))} />ARS</label>
         {payForm.useArs ? (<><Input placeholder="ARS" type="number" step="any" value={payForm.amountArs} onChange={(e) => setPayForm(p => ({...p, amountArs: e.target.value}))} /><Input placeholder="TC" type="number" step="any" value={payForm.exchangeRate} onChange={(e) => setPayForm(p => ({...p, exchangeRate: e.target.value}))} /></>) : (<Input placeholder="USD" type="number" step="any" value={payForm.amountUsd} onChange={(e) => setPayForm(p => ({...p, amountUsd: e.target.value}))} />)}
-        <div className="flex justify-end gap-2"><Button type="button" variant="ghost" onClick={() => setPayTarget(null)}>Cancelar</Button><Button type="submit">Pagar</Button></div>
+        {payError && <p role="alert" className="text-sm text-red-600">{payError}</p>}
+        <div className="flex justify-end gap-2"><Button type="button" variant="ghost" onClick={() => setPayTarget(null)} disabled={paySaving}>Cancelar</Button><Button type="submit" disabled={paySaving}>{paySaving ? "Pagando…" : "Pagar"}</Button></div>
       </form></div></div></div></ModalPortal>}
 
       {/* Category management */}
@@ -403,7 +409,7 @@ export function ExpenseList({ initial, categories: cats, projects: projs, client
       </div></div></div></ModalPortal>}
 
       <ConfirmActionModal open={!!delTarget} title={delTarget?.status === "PAID" ? "Eliminar gasto pagado" : "Eliminar gasto"} description={delTarget?.status === "PAID" ? "Este gasto ya esta pagado. ¿Confirmas?" : `¿Eliminar "${delTarget?.concept}"?`} confirmLabel="Eliminar" isPending={false} error={delError} onClose={() => setDelTarget(null)} onConfirm={handleDelete} />
-      <ConfirmActionModal open={!!catDelTarget} title="Eliminar categoria" description={`¿Eliminar "${catDelTarget?.name}"?`} confirmLabel="Eliminar" isPending={false} error={null} onClose={() => setCatDelTarget(null)} onConfirm={handleCatDel} />
+      <ConfirmActionModal open={!!catDelTarget} title="Eliminar categoria" description={`¿Eliminar "${catDelTarget?.name}"?`} confirmLabel="Eliminar" isPending={false} error={catDelError} onClose={() => { setCatDelTarget(null); setCatDelError(null); }} onConfirm={handleCatDel} />
 
       <BulkActionBar
         count={selected.size}

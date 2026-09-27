@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { formatUsd, formatDate } from "@/lib/utils";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DataTable } from "@/components/ui/data-table";
@@ -47,6 +48,7 @@ function toISODate(d: string | Date | null): string | null {
 }
 
 export function ProjectList({ initialProjects, clients }: { initialProjects: Project[]; clients: { id: string; name: string }[] }) {
+  const router = useRouter();
   const [projects, setProjects] = useState<Project[]>(initialProjects);
   const [filter, setFilter] = useState<"all" | "active" | "inactive">("active");
   const [showForm, setShowForm] = useState(false);
@@ -54,9 +56,9 @@ export function ProjectList({ initialProjects, clients }: { initialProjects: Pro
   const [deleteTarget, setDeleteTarget] = useState<Project | null>(null);
   const [delError, setDelError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [actionError, setActionError] = useState<string | null>(null);
 
-
-const reload = () => { setTimeout(() => window.location.reload(), 500); };
+  useEffect(() => setProjects(initialProjects), [initialProjects]);
 
   const handleSave = async (data: Record<string, unknown>) => {
     const fd = new FormData();
@@ -78,10 +80,11 @@ const reload = () => { setTimeout(() => window.location.reload(), 500); };
       fd.set("monthlyRecurringCurrency", (data.monthlyRecurringCurrency as string) || "USD");
       if (data.monthlyRecurringExchangeRate != null) fd.set("monthlyRecurringExchangeRate", String(data.monthlyRecurringExchangeRate));
     }
-    await saveProject(null, fd);
+    const result = await saveProject(null, fd);
+    if (!result.success) throw new Error(result.message);
     setShowForm(false);
     setEditProject(null);
-    reload();
+    router.refresh();
   };
 
   const handleDelete = async () => {
@@ -95,17 +98,22 @@ const reload = () => { setTimeout(() => window.location.reload(), 500); };
       return;
     }
     setDeleteTarget(null);
-    reload();
+    router.refresh();
   };
 
   const handleToggle = async (p: Project) => {
+    setActionError(null);
     const fd = new FormData();
     fd.set("id", p.id);
     fd.set("clientId", p.client.id);
     fd.set("name", p.name);
     fd.set("isActive", p.isActive ? "true" : "false");
-    await toggleProjectActive(null, fd);
-    reload();
+    const result = await toggleProjectActive(null, fd);
+    if (!result.success) {
+      setActionError(result.message);
+      return;
+    }
+    router.refresh();
   };
 
   const filtered = projects.filter((p) => {
@@ -147,13 +155,18 @@ const reload = () => { setTimeout(() => window.location.reload(), 500); };
         </span>
         <span className="text-lg font-bold tabular-nums text-gray-900">{searched.length}</span>
       </div>
+      {actionError && <p role="alert" className="text-sm text-brick">{actionError}</p>}
 
       {/* DESKTOP TABLE */}
       <div className="hidden md:block">
       <DataTable tableClassName="table-fixed" headers={["Proyecto", "Cliente", "Estado", "Inicio", "Fin", "Importe acordado", "Importe mensual", "Acciones"]}
         colGroup={<colgroup><col style={{width:"22%"}} /><col style={{width:"14%"}} /><col style={{width:"7%"}} /><col style={{width:"8%"}} /><col style={{width:"8%"}} /><col style={{width:"12%"}} /><col style={{width:"12%"}} /><col style={{width:"17%"}} /></colgroup>}
       >
-        {searched.map((p) => (
+        {searched.length === 0 ? (
+          <tr><td colSpan={8} className="px-4 py-8 text-center text-sm text-gray-500">
+            {search ? "No hay proyectos que coincidan con la búsqueda." : "No hay proyectos para este filtro."}
+          </td></tr>
+        ) : searched.map((p) => (
           <tr key={p.id}>
             <td className="px-4 py-2.5 align-middle"><div className="line-clamp-2 break-words" title={p.name}><Link href={`/projects/${p.id}`} className="text-cobalt underline">{p.name}</Link></div></td>
             <td className="px-4 py-2.5 align-middle"><div className="line-clamp-2 break-words" title={p.client.name}>{p.client.name}</div></td>
@@ -194,7 +207,9 @@ const reload = () => { setTimeout(() => window.location.reload(), 500); };
             </div>
           </div>
         ))}
-        {filtered.length === 0 && <p className="text-center text-gray-400 text-sm py-8">Sin proyectos.</p>}
+        {searched.length === 0 && <p className="text-center text-gray-500 text-sm py-8">
+          {search ? "No hay proyectos que coincidan con la búsqueda." : "No hay proyectos para este filtro."}
+        </p>}
       </div>
 
       <ProjectFormModal

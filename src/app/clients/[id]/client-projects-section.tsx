@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -40,8 +41,11 @@ export function ClientProjectsSection({
   incomeTotals?: Totals;
   expenseTotals?: Totals;
 }) {
+  const router = useRouter();
   const [projects, setProjects] = useState<Project[]>(initialProjects);
   const [showForm, setShowForm] = useState(false);
+
+  useEffect(() => setProjects(initialProjects), [initialProjects]);
 
   const handleSave = async (data: Record<string, unknown>) => {
     const fd = new FormData();
@@ -61,9 +65,10 @@ export function ClientProjectsSection({
       fd.set("monthlyRecurringCurrency", (data.monthlyRecurringCurrency as string) || "USD");
       if (data.monthlyRecurringExchangeRate != null) fd.set("monthlyRecurringExchangeRate", String(data.monthlyRecurringExchangeRate));
     }
-    await saveProject(null, fd);
+    const result = await saveProject(null, fd);
+    if (!result.success) throw new Error(result.message);
     setShowForm(false);
-    setTimeout(() => window.location.reload(), 500);
+    router.refresh();
   };
 
   const hasTotals = incomeTotals || expenseTotals;

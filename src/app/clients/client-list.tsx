@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DataTable } from "@/components/ui/data-table";
@@ -19,11 +20,15 @@ type Client = {
 };
 
 export function ClientList({ clients: initial }: { clients: Client[] }) {
+  const router = useRouter();
   const [clients, setClients] = useState<Client[]>(initial);
   const [editing, setEditing] = useState<Client | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Client | null>(null);
   const [search, setSearch] = useState("");
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  useEffect(() => setClients(initial), [initial]);
 
   const filtered = clients.filter(c =>
     !search ||
@@ -33,12 +38,6 @@ export function ClientList({ clients: initial }: { clients: Client[] }) {
     (c.contactPhone ?? "").toLowerCase().includes(search.toLowerCase())
   );
 
-  // Refresh client list after server action completes
-  const refresh = () => {
-    // revalidatePath handles this, but we reload via navigation or refetch
-    window.location.reload();
-  };
-
   const handleSave = async (data: Record<string, string>) => {
     const fd = new FormData();
     if (editing) fd.set("id", editing.id);
@@ -47,19 +46,25 @@ export function ClientList({ clients: initial }: { clients: Client[] }) {
     fd.set("contactEmail", data.contactEmail ?? "");
     fd.set("contactPhone", data.contactPhone ?? "");
     fd.set("notes", data.notes ?? "");
-    await saveClient(null, fd);
+    const result = await saveClient(null, fd);
+    if (!result.success) throw new Error(result.message);
     setShowForm(false);
     setEditing(null);
-    setTimeout(() => window.location.reload(), 500);
+    router.refresh();
   };
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
+    setDeleteError(null);
     const fd = new FormData();
     fd.set("id", deleteTarget.id);
-    await removeClient(null, fd);
+    const result = await removeClient(null, fd);
+    if (!result.success) {
+      setDeleteError(result.message);
+      return;
+    }
     setDeleteTarget(null);
-    setTimeout(() => window.location.reload(), 500);
+    router.refresh();
   };
 
   return (
@@ -84,7 +89,11 @@ export function ClientList({ clients: initial }: { clients: Client[] }) {
       <DataTable tableClassName="table-fixed" headers={["Nombre", "Contacto", "Email", "Telefono", "Proyectos", "Acciones"]}
         colGroup={<colgroup><col style={{width:"28%"}} /><col style={{width:"12%"}} /><col style={{width:"14%"}} /><col style={{width:"10%"}} /><col style={{width:"8%"}} /><col style={{width:"28%"}} /></colgroup>}
       >
-        {filtered.map((c) => (
+        {filtered.length === 0 ? (
+          <tr><td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-500">
+            {search ? "No hay clientes que coincidan con la búsqueda." : "Todavía no hay clientes."}
+          </td></tr>
+        ) : filtered.map((c) => (
           <tr key={c.id}>
             <td className="px-4 py-2.5 align-middle">
               <div className="line-clamp-2 break-words" title={c.name}>
@@ -129,6 +138,11 @@ export function ClientList({ clients: initial }: { clients: Client[] }) {
             </div>
           </div>
         ))}
+        {filtered.length === 0 && (
+          <p className="py-8 text-center text-sm text-gray-500">
+            {search ? "No hay clientes que coincidan con la búsqueda." : "Todavía no hay clientes."}
+          </p>
+        )}
       </div>
 
       <ClientFormModal
@@ -150,8 +164,8 @@ export function ClientList({ clients: initial }: { clients: Client[] }) {
         description={`¿Eliminar "${deleteTarget?.name}"? Esta accion no se puede deshacer.`}
         confirmLabel="Eliminar"
         isPending={false}
-        error={null}
-        onClose={() => setDeleteTarget(null)}
+        error={deleteError}
+        onClose={() => { setDeleteTarget(null); setDeleteError(null); }}
         onConfirm={handleDelete}
       />
     </>

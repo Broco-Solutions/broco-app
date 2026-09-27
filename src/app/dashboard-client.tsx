@@ -53,8 +53,8 @@ export function DashboardClient({
 }) {
   const router = useRouter();
   const [preset, setPreset] = useState(period === "custom" ? "custom" : (period || "this-month"));
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
+  const [from, setFrom] = useState(period === "custom" ? rangeFrom.toISOString().slice(0, 10) : "");
+  const [to, setTo] = useState(period === "custom" ? rangeTo.toISOString().slice(0, 10) : "");
   const k = data.kpis;
   const prevLabel = dateRangeLabel(prevFrom, prevTo);
   const rangeLabel = dateRangeLabel(rangeFrom, rangeTo);

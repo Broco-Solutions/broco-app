@@ -39,3 +39,18 @@
   instrucciones antiguas; no son mecanismos operativos.
 - No se modificaron entidades ni datos de la SOT. Las asignaciones siguen
   referenciando los `Project` existentes mediante FK.
+
+## Integración UX financiera
+
+La edición bulk de Estado solicita una fecha explícita y actualiza de forma
+consistente estado, fecha relevante y fecha incompatible. Los formularios
+financieros limpian correctamente campos ARS/USD al cambiar de moneda, también
+en batch. Clientes, Proyectos, Ingresos y Gastos distinguen sin datos de sin
+resultados por filtros o búsqueda.
+
+Backlog UX sin implementar:
+
+- Persistir filtros y búsquedas de Ingresos/Gastos en query params.
+- Completar estados `isPending`, labels visibles y focus de todos los modales.
+- Fecha de ingreso separada de `createdAt` para Usuarios/Colaboradores.
+- Contratos/vencimientos asociados a Cliente y opcionalmente Proyecto.

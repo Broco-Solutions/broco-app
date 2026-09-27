@@ -237,7 +237,7 @@ export function IncomeList({ initialIncomes, projects, clients, incomeTypes }: {
         <span className="text-gray-500">Total filtrado · <span className="font-medium">{filtered.length} movimientos</span></span>
         <span className="font-bold tabular-nums text-gray-900">{formatUsd(filteredTotal)}</span>
       </div>
-      {(dateFrom || dateTo || filter !== "all" || typeFilter || fClient || fProject) && (
+      {(dateFrom || dateTo || filter !== "all" || typeFilter || fClient || fProject || search) && (
         <div className="flex items-center gap-2 flex-wrap">
           {dateFrom && dateTo && <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded">{dateFrom.split("-").reverse().join("/")} – {dateTo.split("-").reverse().join("/")}</span>}
           {filter !== "all" && <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">{filter === "PAID" ? "Cobrados" : filter === "PENDING" ? "Pendientes" : "Vencidos"}</span>}
@@ -252,7 +252,9 @@ export function IncomeList({ initialIncomes, projects, clients, incomeTypes }: {
           colGroup={<colgroup><col style={{width:"3%"}} /><col style={{width:"16%"}} /><col style={{width:"11%"}} /><col style={{width:"11%"}} /><col style={{width:"8%"}} /><col style={{width:"8%"}} /><col style={{width:"9%"}} /><col style={{width:"10%"}} /><col style={{width:"12%"}} /><col style={{width:"12%"}} /></colgroup>}
           footer={<tr className="bg-gray-50 font-semibold"><td className="px-4 py-2.5 text-xs text-gray-500">Total filtrado · {filtered.length} mov.</td><td /><td /><td /><td /><td /><td className="px-4 py-2.5 text-sm text-right tabular-nums">{formatUsd(filteredTotal)}</td><td /><td /></tr>}
         >
-          {filtered.map(inc => (
+          {filtered.length === 0 ? <tr><td colSpan={10} className="px-4 py-8 text-center text-sm text-gray-500">
+            {search || dateFrom || dateTo || typeFilter || fClient || fProject || filter !== "all" ? "No hay ingresos para los filtros actuales." : "Todavía no hay ingresos."}
+          </td></tr> : filtered.map(inc => (
             <tr key={inc.id}>
               <td className="px-2 py-2.5"><input type="checkbox" checked={selected.has(inc.id)} onChange={() => toggleSelect(inc.id)} className="h-3.5 w-3.5" /></td>
               <td className="px-4 py-2.5 text-sm align-middle"><div className="line-clamp-2 break-words" title={inc.concept}>{inc.concept}</div></td>
@@ -297,7 +299,9 @@ export function IncomeList({ initialIncomes, projects, clients, incomeTypes }: {
             </div>
           </div>
         ))}
-        {filtered.length === 0 && <p className="text-center text-gray-400 text-sm py-8">Sin ingresos.</p>}
+        {filtered.length === 0 && <p className="text-center text-gray-500 text-sm py-8">
+          {search || dateFrom || dateTo || typeFilter || fClient || fProject || filter !== "all" ? "No hay ingresos para los filtros actuales." : "Todavía no hay ingresos."}
+        </p>}
       </div>
 
       <IncomeFormModal open={showForm} title={editing ? "Editar ingreso" : "Nuevo ingreso"} projects={projects} clients={clients} incomeTypes={incomeTypes}

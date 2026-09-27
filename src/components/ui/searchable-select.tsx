@@ -67,6 +67,9 @@ export function SearchableSelect({
         type="button"
         disabled={disabled}
         onClick={handleToggle}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label={selected ? undefined : placeholder}
         className={cn(
           "h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-left flex items-center justify-between gap-2",
           "outline-none focus:border-brand focus:ring-1 focus:ring-brand",
@@ -90,7 +93,7 @@ export function SearchableSelect({
             placeholder="Buscar…"
             className="w-full border-b border-gray-200 px-3 py-2 text-sm outline-none placeholder:text-gray-400"
           />
-          <div className="max-h-48 overflow-y-auto">
+          <div className="max-h-48 overflow-y-auto" role="listbox">
             {filtered.length === 0 ? (
               <div className="px-3 py-2 text-sm text-gray-400">Sin resultados.</div>
             ) : (
@@ -98,6 +101,8 @@ export function SearchableSelect({
                 <button
                   key={opt.id}
                   type="button"
+                  role="option"
+                  aria-selected={opt.id === value}
                   onClick={() => handleSelect(opt)}
                   className={cn(
                     "w-full px-3 py-2 text-sm text-left hover:bg-gray-50 transition-colors",

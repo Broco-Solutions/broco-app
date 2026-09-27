@@ -64,7 +64,7 @@ export function ConfirmActionModal({
           type="button"
         />
         <div className="relative flex min-h-full items-start justify-center sm:items-center">
-          <div className="relative w-full max-w-xl">
+          <div className="relative w-full max-w-xl" role="dialog" aria-modal="true" aria-labelledby="confirm-action-title" aria-describedby="confirm-action-description">
             <Card className="border border-black/10 bg-[linear-gradient(180deg,rgba(255,250,249,0.98),rgba(255,244,240,0.96))] p-0 shadow-[0_24px_80px_rgba(16,21,34,0.18)]">
               <div className="flex max-h-[calc(100vh-3rem)] flex-col">
                 <div className="flex-1 space-y-5 overflow-y-auto p-6">
@@ -74,8 +74,8 @@ export function ConfirmActionModal({
                         <AlertTriangle className="h-3.5 w-3.5" />
                         Confirmación requerida
                       </div>
-                      <h3 className="mt-2 font-display text-3xl text-ink">{title}</h3>
-                      <p className="mt-2 max-w-lg text-sm text-ink/65">{description}</p>
+                      <h3 id="confirm-action-title" className="mt-2 font-display text-3xl text-ink">{title}</h3>
+                      <p id="confirm-action-description" className="mt-2 max-w-lg text-sm text-ink/65">{description}</p>
                     </div>
                     <button
                       aria-label="Cerrar modal"
@@ -88,7 +88,7 @@ export function ConfirmActionModal({
                   </div>
 
                   {children ? <div className="rounded-[1.2rem] border border-black/8 bg-white/80 p-4">{children}</div> : null}
-                  {error ? <p className="text-sm text-brick">{error}</p> : null}
+                  {error ? <p role="alert" className="text-sm text-brick">{error}</p> : null}
                 </div>
 
                 <div className="flex flex-wrap justify-end gap-3 border-t border-black/8 bg-white/92 px-6 py-4 backdrop-blur-sm">
