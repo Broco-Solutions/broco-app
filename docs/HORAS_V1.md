@@ -32,8 +32,12 @@ clientes se derivan de esos proyectos existentes.
 No se crean cuentas reales en el repositorio. En una base local dedicada, después de aplicar el esquema, usar variables temporales fuera de Git y ejecutar:
 
 ```bash
-ALLOW_ADMIN_BOOTSTRAP=true ADMIN_BOOTSTRAP_NAME='Administrador inicial' ADMIN_BOOTSTRAP_EMAIL='admin@example.invalid' ADMIN_BOOTSTRAP_PASSWORD='(secreto local de 12+ caracteres)' pnpm exec tsx scripts/bootstrap-admin.ts
+NODE_ENV=test ALLOW_LOCAL_BOOTSTRAP_TEST=true ALLOW_ADMIN_BOOTSTRAP=true DATABASE_URL_TEST='(solo localhost:5434/broco_finance_test)' ADMIN_BOOTSTRAP_NAME='Administrador inicial' ADMIN_BOOTSTRAP_EMAIL='admin@example.invalid' ADMIN_BOOTSTRAP_PASSWORD='(secreto local de 12+ caracteres)' pnpm bootstrap:admin
 ```
+
+El script rechaza cualquier destino local que no sea la DB de test autorizada.
+El procedimiento productivo no se documenta aquí: consultar únicamente
+[`docs/PRODUCCION.md`](PRODUCCION.md).
 
 En Equipo, el administrador crea una persona pendiente y genera un enlace seguro. Debe compartirlo por un canal privado; el enlace vence en 24 horas y solo puede utilizarse una vez.
 
@@ -85,25 +89,8 @@ El script rechaza cualquier host distinto de `localhost:5434` y no imprime la co
 
 ## Preparación para producción
 
-La migración `prisma/migrations/20260927090000_add_hours_auth/migration.sql`
-es el registro de esquema para revisión. No se ejecutó fuera de PostgreSQL
-local/test. Antes de producción se necesita un runner controlado que:
-
-- haga prechecks de tablas/columnas/filas inesperadas y aborte ante cualquier
-  estado no previsto;
-- ejecute DDL de a una sentencia por llamada al proxy de Prisma Accelerate;
-- sea idempotente, registre solo resultados no sensibles y no haga seed;
-- tenga backup/verificación previa, ventana aprobada y rollback lógico;
-- valide una segunda ejecución segura y los índices/constraints resultantes.
-
-Variables previstas: `AUTH_SECRET`, más las variables ya existentes del portal
-(`PROJECT_SHARE_ENCRYPTION_KEY` y `PROJECT_SHARE_SESSION_SECRET`). Las
-variables `ALLOW_ADMIN_BOOTSTRAP`, `ADMIN_BOOTSTRAP_NAME`,
-`ADMIN_BOOTSTRAP_EMAIL` y `ADMIN_BOOTSTRAP_PASSWORD` solo se usan durante el
-bootstrap inicial controlado y no deben quedar configuradas permanentemente.
-La activación se entrega manualmente; no hay envío de correo en V1.
-
-Antes de publicar todavía falta ejecutar ese procedimiento de migración y
-validación en un entorno productivo controlado, crear cuentas reales fuera de
-Git y acordar el canal privado para los enlaces de activación. Esta tanda no
-hizo push, deploy, DDL remoto ni creó credenciales reales.
+La migración versionada continúa siendo el registro de esquema para revisión,
+pero el procedimiento operativo vigente (runner, backup, inventario, variables,
+bootstrap, smoke y rollback) está únicamente en
+[`docs/PRODUCCION.md`](PRODUCCION.md). Este documento no debe usarse como
+runbook ni contiene credenciales reales.

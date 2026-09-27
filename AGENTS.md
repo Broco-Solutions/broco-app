@@ -65,3 +65,6 @@ Package manager canónico: **pnpm**. `package-lock.json` está deliberadamente e
 - La única fuente vigente de instrucciones productivas es `docs/PRODUCCION.md`.
   Las migraciones one-shot históricas ya aplicadas no se ejecutan nuevamente
   desde este repositorio.
+- La preparación de Tiempos/Auth se valida localmente con `pnpm test:prod-prep`.
+  El runner productivo y el inventario exigen guards explícitos y se describen
+  únicamente en `docs/PRODUCCION.md`; nunca se prueban contra un host remoto.
