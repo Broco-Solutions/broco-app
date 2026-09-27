@@ -4,6 +4,16 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/server/prisma";
 export function hashAccessToken(token: string) { return createHash("sha256").update(token).digest("hex"); }
 
+/** Cheap preflight only; activateAccountToken remains the authoritative atomic claim. */
+export async function hasUsableActivationToken(token: string): Promise<boolean> {
+  if (!token) return false;
+  const access = await prisma.accessToken.findFirst({
+    where: { tokenHash: hashAccessToken(token), purpose: "ACTIVATE", usedAt: null, revokedAt: null, expiresAt: { gt: new Date() } },
+    select: { id: true },
+  });
+  return Boolean(access);
+}
+
 const ACTIVATION_TTL_MS = 24 * 60 * 60 * 1000;
 
 export async function issueActivationToken(userId: string): Promise<string> {

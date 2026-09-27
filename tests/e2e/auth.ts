@@ -4,8 +4,8 @@ export const E2E_PASSWORD = process.env.HOURS_TEST_PASSWORD ?? "";
 export async function loginAs(page: Page, email: string) {
   if (!E2E_PASSWORD) throw new Error("HOURS_TEST_PASSWORD es obligatoria para E2E.");
   await page.goto("http://localhost:3299/login");
-  await page.getByLabel("Correo").fill(email);
-  await page.getByLabel("Contraseña").fill(E2E_PASSWORD);
+  await page.getByLabel(/correo/i).fill(email);
+  await page.locator("#password").fill(E2E_PASSWORD);
   await page.getByRole("button", { name: "Ingresar" }).click();
   await page.waitForURL((url) => !url.pathname.startsWith("/login"));
 }

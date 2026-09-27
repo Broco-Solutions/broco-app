@@ -2,8 +2,23 @@ import { test, expect } from "@playwright/test";
 import { loginAs, loginAsAdmin, loginAsCollaboratorA, loginAsCollaboratorB } from "./auth";
 
 test.describe("Horas V1 - autenticación y permisos", () => {
+  test("login muestra copy y permite alternar la contraseña", async ({ page }) => {
+    await page.goto("/login");
+    await expect(page.getByText("ACCESO INTERNO")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Ingresá a Broco" })).toBeVisible();
+    await expect(page.getByPlaceholder("nombre@brocosolutions.com")).toBeVisible();
+    const password = page.locator("#password");
+    await expect(password).toHaveAttribute("type", "password");
+    const toggle = page.getByRole("button", { name: "Mostrar contraseña" });
+    await toggle.click();
+    await expect(password).toHaveAttribute("type", "text");
+    await expect(page.getByRole("button", { name: "Ocultar contraseña" })).toBeVisible();
+    await page.getByRole("button", { name: "Ocultar contraseña" }).click();
+    await expect(password).toHaveAttribute("type", "password");
+  });
+
   test("rechaza credenciales inválidas", async ({ page }) => {
-    await page.goto("/login"); await page.getByLabel("Correo").fill("admin@test.local"); await page.getByLabel("Contraseña").fill("incorrecta-incorrecta"); await page.getByRole("button", { name: "Ingresar" }).click(); await expect(page.locator("p[role=alert]")).toContainText("incorrectos");
+    await page.goto("/login"); await page.getByLabel(/correo/i).fill("admin@test.local"); await page.locator("#password").fill("incorrecta-incorrecta"); await page.getByRole("button", { name: "Ingresar" }).click(); await expect(page.locator("p[role=alert]")).toContainText("incorrectos");
   });
 
   test("admin ve Tiempos, Reportes y Asignaciones", async ({ page }) => {
