@@ -1,3 +1,6 @@
+> HISTÓRICO / NO OPERATIVO. Registro de auditorías anteriores; no describe
+> necesariamente el runtime actual ni autoriza operaciones sobre producción.
+
 ## Resumen ejecutivo
 
   El feature Kanban vive en una ruta y servicio dedicados, no entra por finance.ts como entrypoint principal.

@@ -1,5 +1,9 @@
 # Finanzas Handoff
 
+> HISTÓRICO / NO OPERATIVO. No usar este documento como runbook ni como
+> descripción del login actual. El sistema vigente usa Auth.js, usuarios
+> individuales y roles; consultar `docs/PRODUCCION.md` y `docs/HORAS_V1.md`.
+
 Documento de contexto técnico del proyecto `BrocoFinance` para futuras sesiones de trabajo, onboarding técnico y consumo por otros agentes.
 
 Estado del análisis: basado en el codebase actual de `/home/tomas/BrocoFinance` al 2026-03-17.

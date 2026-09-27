@@ -1,5 +1,10 @@
 # Plan de Desarrollo — Broco Solutions Finance App
 
+> HISTÓRICO / NO OPERATIVO. Este documento describe una etapa anterior con
+> login compartido, `APP_PASSWORD` y `broco_session`. El sistema actual usa
+> Auth.js con usuarios individuales; para procedimientos vigentes consultar
+> `docs/PRODUCCION.md` y `docs/HORAS_V1.md`.
+
 ## 1. Visión General
 
 App web interna para gestión financiera de Broco Solutions. Reemplaza el Google Sheet actual con una solución más robusta para tracking de ingresos, gastos, pagos recurrentes, cuentas por cobrar, distribución por capas y dashboard con indicadores clave.

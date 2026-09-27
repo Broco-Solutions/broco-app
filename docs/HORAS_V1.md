@@ -66,11 +66,13 @@ El script rechaza cualquier host distinto de `localhost:5434` y no imprime la co
 
 ## Resultado de la validación de esta tanda
 
-- `tests/integration/hours.test.ts`: 5/5 PASS, incluyendo IDOR, idempotencia,
-  límite diario, corrección administrativa, anulación, auditoría y protección
-  de proyectos con horas.
-- `pnpm test:e2e`: 24/24 PASS con administrador y dos colaboradores de test;
-  se migraron los escenarios legacy a login real.
+- `tests/integration/hours.test.ts`: cobertura de IDOR, idempotencia, límite
+  diario, corrección administrativa con control optimista, anulación,
+  auditoría y protección de proyectos con horas. El resultado exacto se valida
+  en cada ejecución de la suite y no se fija como un conteo histórico aquí.
+- La suite E2E pasa con administrador y dos colaboradores de test; los
+  escenarios de autenticación usan login real y el resultado exacto se valida
+  en cada ejecución.
 - En la navegación actual, ADMIN dispone de Tiempos > Registros, Reportes y
   Asignaciones; COLLABORATOR dispone únicamente de Tiempos > Registros, con
   KPIs y filtros personales dentro de la misma pantalla.

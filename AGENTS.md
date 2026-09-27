@@ -18,7 +18,10 @@ Package manager canónico: **pnpm**. `package-lock.json` está deliberadamente e
 - `.env.test` define `DATABASE_URL` y `DATABASE_URL_TEST` (ambas → DB test). `.env*` están en gitignore; si no existe `.env`, las server actions/client Prisma fallan al conectar.
 - **Orden para integración:** DB up → `DATABASE_URL=<test> npx prisma db push` → seed → `pnpm db:test:constraints`. El seed exige `DATABASE_URL ≠ DATABASE_URL_TEST` (usar `DATABASE_URL=postgresql://mock:mock@localhost:9999/broco_finance_prod`). `pnpm db:seed:test` ya lo hace. `db:test:constraints` aplica únicamente en `localhost:5434/broco_finance_test` los CHECK/índices históricos que no pueden expresarse en `schema.prisma`.
 - `reconciliation.test.ts` espera totales exactos del seed canónico (24024.94/16181.03).
-- **Fallas de integración pre-existentes (NO arreglar en app code):** `tests/sql/constraints.test.ts` (CHECKs SQL que no existen en la DB), tests de duplicados case-insensitive, reconciliación. Correr `tests/integration/incomes.test.ts` + `thirty-days` + `date-filters` + `dashboard-kpis` para validar cambios de ingresos.
+- La suite vigente debe ejecutarse completa con la infraestructura de test
+  local. Las constraints históricas de test se aplican con
+  `pnpm db:test:constraints`; no se acepta una baseline roja como estado
+  operativo.
 
 ## Arquitectura
 
