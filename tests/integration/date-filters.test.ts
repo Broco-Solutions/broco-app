@@ -8,6 +8,7 @@ const skip = !url;
 describe.skipIf(skip)("filtros from/to en ingresos y gastos", () => {
   const prisma = new PrismaClient({ datasources: { db: { url } } });
   const ids: string[] = [];
+  const expenseIds: string[] = [];
   let otherTypeId = "";
 
   beforeAll(async () => {
@@ -18,7 +19,7 @@ describe.skipIf(skip)("filtros from/to en ingresos y gastos", () => {
 
   afterAll(async () => {
     for (const id of ids) { try { await prisma.income.delete({ where: { id } }).catch(()=>{}); } catch {} }
-    try { await prisma.expense.deleteMany({ where: { expenseCategoryId: { in: (await prisma.expenseCategory.findMany({ take: 1 })).map(c => c.id) } } }); } catch {}
+    for (const id of expenseIds) { try { await prisma.expense.delete({ where: { id } }).catch(() => {}); } catch {} }
     await prisma.$disconnect();
   });
 
@@ -39,6 +40,23 @@ describe.skipIf(skip)("filtros from/to en ingresos y gastos", () => {
   it("rango inclusivo incluye el primer y ultimo dia", async () => {
     const inc = await prisma.income.create({ data: { typeId: otherTypeId, concept: "ft-incl", status: "PAID", amountUsd: 1, effectiveDate: new Date("2026-07-01") } }); ids.push(inc.id);
     const found = await prisma.income.findFirst({ where: { id: inc.id, effectiveDate: { gte: new Date("2026-07-01"), lte: new Date("2026-07-01") } } });
+    expect(found).not.toBeNull();
+  });
+
+  it("filtro de gastos usa effectiveDate en rango", async () => {
+    const category = await prisma.expenseCategory.findFirstOrThrow();
+    const expense = await prisma.expense.create({
+      data: {
+        expenseCategoryId: category.id,
+        type: "FIXED",
+        concept: "ft-expense",
+        status: "PAID",
+        amountUsd: 1,
+        effectiveDate: new Date("2026-06-15"),
+      },
+    });
+    expenseIds.push(expense.id);
+    const found = await prisma.expense.findFirst({ where: { id: expense.id, effectiveDate: { gte: new Date("2026-06-01"), lte: new Date("2026-06-30") } } });
     expect(found).not.toBeNull();
   });
 
