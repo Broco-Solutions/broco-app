@@ -1,14 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { isAuthenticated } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import { createIncomeType, updateIncomeType, deleteIncomeType, incomeTypeSchema } from "@/server/services/income-types";
 
 type R = { success: true } | { success: false; message: string };
 
 export async function saveIncomeType(_prev: R | null, fd: FormData): Promise<R> {
   try {
-    if (!isAuthenticated()) throw new Error("Sesion expirada.");
+    await requireRole("ADMIN");
     const data = incomeTypeSchema.parse({
       name: fd.get("name"),
       requiresProject: fd.get("requiresProject") === "true",
@@ -22,7 +22,7 @@ export async function saveIncomeType(_prev: R | null, fd: FormData): Promise<R> 
 
 export async function removeIncomeType(_prev: R | null, fd: FormData): Promise<R> {
   try {
-    if (!isAuthenticated()) throw new Error("Sesion expirada.");
+    await requireRole("ADMIN");
     await deleteIncomeType(fd.get("id") as string);
     revalidatePath("/incomes");
     return { success: true };

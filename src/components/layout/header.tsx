@@ -4,13 +4,13 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { LogOut, Menu, X } from "lucide-react";
-import { apiFetch } from "@/lib/api";
+import { signOut } from "next-auth/react";
 import { BrandLogo } from "@/components/layout/brand-logo";
 import { navigationItems } from "@/components/layout/navigation-config";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-export function Header() {
+export function Header({ role }: { role?: "ADMIN" | "COLLABORATOR" }) {
   const pathname = usePathname();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -26,7 +26,7 @@ export function Header() {
     return () => { document.body.style.overflow = prev; window.removeEventListener("keydown", esc); };
   }, [mobileMenuOpen]);
 
-  const logout = () => { startTransition(async () => { await apiFetch("/api/auth", { method: "DELETE" }); router.push("/login"); router.refresh(); }); };
+  const logout = () => { startTransition(async () => { await signOut({ redirect: false }); router.push("/login"); router.refresh(); }); };
 
   return (
     <>
@@ -53,7 +53,7 @@ export function Header() {
           <button className="absolute inset-0 bg-black/50" onClick={() => setMobileMenuOpen(false)} />
           <div className="absolute inset-x-3 top-14 max-h-[80vh] overflow-y-auto rounded-xl border border-gray-200 bg-white p-4 shadow-xl">
             <nav className="space-y-1">
-              {navigationItems.map((item) => {
+              {navigationItems.filter((item) => role === "ADMIN" || (item.href.startsWith("/hours") && item.href !== "/hours/team")).map((item) => {
                 const active = pathname === item.href || pathname.startsWith(item.href + "/");
                 return (
                   <Link key={item.href} href={item.href} prefetch

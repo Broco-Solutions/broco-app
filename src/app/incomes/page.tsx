@@ -4,10 +4,12 @@ import { listClients } from "@/server/services/clients";
 import { listIncomeTypes } from "@/server/services/income-types";
 import { PageHeader } from "@/components/ui/page-header";
 import { IncomeList } from "./income-list";
+import { requireRole } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export default async function IncomesPage() {
+  await requireRole("ADMIN");
   const [incomes, projects, clients, incomeTypes] = await Promise.all([
     listIncomes().catch(() => []),
     listProjects().catch(() => []),

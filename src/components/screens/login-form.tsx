@@ -4,11 +4,12 @@ import { FormEvent, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { apiFetch } from "@/lib/api";
+import { signIn } from "next-auth/react";
 
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -18,10 +19,8 @@ export function LoginForm() {
     startTransition(async () => {
       try {
         setError(null);
-        await apiFetch("/api/auth", {
-          method: "POST",
-          body: JSON.stringify({ password }),
-        });
+        const result = await signIn("credentials", { email, password, redirect: false });
+        if (!result || result.error) throw new Error("Correo o contraseña incorrectos.");
         router.push(searchParams.get("redirectTo") ?? "/");
         router.refresh();
       } catch (submitError) {
@@ -35,9 +34,11 @@ export function LoginForm() {
       <div className="space-y-4">
         <div className="inline-flex rounded-full bg-slate-900 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-white">Acceso interno</div>
         <h1 className="font-display text-[1.75rem] font-semibold leading-[1.1] tracking-[-0.02em] text-ink sm:text-[1.9rem]">Entrá al tablero operativo</h1>
-        <p className="text-sm leading-6 text-slate-500">Ingresá la clave compartida para continuar.</p>
+        <p className="text-sm leading-6 text-slate-500">Ingresá con tu cuenta individual.</p>
       </div>
       <div className="space-y-2.5 pt-5">
+        <label htmlFor="email" className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Correo</label>
+        <Input id="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="nombre@broco.com" className="h-11" autoComplete="email" />
         <label htmlFor="password" className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Contraseña</label>
         <Input
           id="password"
@@ -53,7 +54,7 @@ export function LoginForm() {
       <Button type="submit" className="mt-1 h-11 w-full text-[15px] font-semibold shadow-[0_8px_20px_rgba(37,99,235,0.25)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2" disabled={isPending}>
         {isPending ? "Validando…" : "Ingresar"}
       </Button>
-      <p className="pt-2 text-center text-xs leading-4 text-slate-400">Sesión protegida · acceso interno</p>
+      <p className="pt-2 text-center text-xs leading-4 text-slate-400">Sesión individual protegida</p>
     </form>
   );
 }

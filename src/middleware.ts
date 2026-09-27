@@ -1,9 +1,8 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { getToken } from "next-auth/jwt";
 
-const AUTH_COOKIE = "broco_session";
-
-const PUBLIC_PATHS = ["/login", "/api/auth", "/_next", "/favicon.ico"];
+const PUBLIC_PATHS = ["/login", "/hours/activate", "/api/auth", "/_next", "/favicon.ico"];
 
 function isMcpPath(pathname: string) {
   return (
@@ -16,7 +15,7 @@ function isPublicPortalPath(pathname: string) {
   return pathname === "/p" || pathname.startsWith("/p/");
 }
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isApiRequest = pathname.startsWith("/api/");
 
@@ -28,7 +27,7 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const session = request.cookies.get(AUTH_COOKIE)?.value;
+  const session = await getToken({ req: request, secret: process.env.AUTH_SECRET });
 
   if (!session) {
     if (isApiRequest) {
@@ -37,6 +36,11 @@ export function middleware(request: NextRequest) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("redirectTo", pathname);
     return NextResponse.redirect(loginUrl);
+  }
+
+  const isFinancePath = pathname === "/" || ["/clients", "/projects", "/incomes", "/expenses"].some((path) => pathname === path || pathname.startsWith(`${path}/`));
+  if (session.role === "COLLABORATOR" && isFinancePath) {
+    return isApiRequest ? NextResponse.json({ error: "No autorizado." }, { status: 403 }) : NextResponse.redirect(new URL("/hours", request.url));
   }
 
   return NextResponse.next();

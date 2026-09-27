@@ -1,10 +1,12 @@
 import { PageHeader } from "@/components/ui/page-header";
 import { listClients } from "@/server/services/clients";
 import { ClientList } from "./client-list";
+import { requireRole } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export default async function ClientsPage() {
+  await requireRole("ADMIN");
   let clients;
   try {
     clients = await listClients();

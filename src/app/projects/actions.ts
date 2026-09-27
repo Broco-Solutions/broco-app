@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { isAuthenticated } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import {
   createProject,
   updateProject,
@@ -12,7 +12,7 @@ import {
 type ActionResult = { success: true } | { success: false; message: string };
 
 async function requireAuth() {
-  if (!isAuthenticated()) throw new Error("Sesion expirada.");
+  await requireRole("ADMIN");
 }
 
 function parseNumber(v: FormDataEntryValue | null): number | undefined {
@@ -26,7 +26,7 @@ export async function saveProject(
   formData: FormData,
 ): Promise<ActionResult> {
   try {
-    requireAuth();
+    await requireAuth();
     const data = projectInputSchema.parse({
       clientId: formData.get("clientId"),
       name: formData.get("name"),
@@ -64,7 +64,7 @@ export async function removeProject(
   formData: FormData,
 ): Promise<ActionResult> {
   try {
-    requireAuth();
+    await requireAuth();
     await deleteProjectSvc(formData.get("id") as string);
     revalidatePath("/projects");
     revalidatePath("/clients/[id]");
@@ -81,7 +81,7 @@ export async function toggleProjectActive(
   formData: FormData,
 ): Promise<ActionResult> {
   try {
-    requireAuth();
+    await requireAuth();
     const id = formData.get("id") as string;
     const clientId = formData.get("clientId") as string;
     const name = formData.get("name") as string;

@@ -1,44 +1,33 @@
 import "server-only";
-import { cookies } from "next/headers";
+import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
+import { prisma } from "@/server/prisma";
+import { authOptions } from "@/server/auth-options";
 
-const AUTH_COOKIE = "broco_session";
-const DEMO_PASSWORD = "demo";
+export type AppRole = "ADMIN" | "COLLABORATOR";
+export type CurrentUser = { id: string; name: string; email: string; role: AppRole; sessionVersion: number };
 
-export function isLoginValid(password: string) {
-  const configuredPassword = process.env.APP_PASSWORD;
-
-  if (!configuredPassword) {
-    return password === DEMO_PASSWORD;
-  }
-
-  return password === configuredPassword;
+export async function getCurrentUser(): Promise<CurrentUser | null> {
+  const session = await getServerSession(authOptions);
+  const id = session?.user?.id;
+  if (!id) return null;
+  const user = await prisma.appUser.findUnique({ where: { id }, select: { id: true, name: true, email: true, role: true, isActive: true, sessionVersion: true } });
+  if (!user?.isActive || user.sessionVersion !== session.user.sessionVersion) return null;
+  return user;
 }
 
-export function getAuthCookieName() {
-  return AUTH_COOKIE;
+export async function requireUser(): Promise<CurrentUser> {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  return user;
 }
 
-export function setSessionCookie() {
-  cookies().set(AUTH_COOKIE, "ok", {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 30,
-  });
+export async function requireRole(role: AppRole): Promise<CurrentUser> {
+  const user = await requireUser();
+  if (user.role !== role) redirect(user.role === "COLLABORATOR" ? "/hours" : "/");
+  return user;
 }
 
-export function clearSessionCookie() {
-  cookies().delete(AUTH_COOKIE);
-}
-
-export function isAuthenticated() {
-  return cookies().get(AUTH_COOKIE)?.value === "ok";
-}
-
-export function requireAuth() {
-  if (!isAuthenticated()) {
-    redirect("/login");
-  }
+export function isLegacySessionCookieName(name: string) {
+  return name === "broco_session";
 }

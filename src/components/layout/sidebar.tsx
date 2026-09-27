@@ -6,7 +6,7 @@ import { BrandLogo } from "@/components/layout/brand-logo";
 import { navigationItems } from "@/components/layout/navigation-config";
 import { cn } from "@/lib/utils";
 
-export function Sidebar() {
+export function Sidebar({ role }: { role?: "ADMIN" | "COLLABORATOR" }) {
   const pathname = usePathname();
   return (
     <aside className="sticky top-0 hidden h-screen w-56 shrink-0 flex-col bg-gray-900 text-gray-300 lg:flex">
@@ -16,7 +16,7 @@ export function Sidebar() {
         </Link>
       </div>
       <nav className="flex-1 space-y-0.5 px-2">
-        {navigationItems.map((item) => {
+        {navigationItems.filter((item) => role === "ADMIN" || (item.href.startsWith("/hours") && item.href !== "/hours/team")).map((item) => {
           const active = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
           return (
             <Link key={item.href} href={item.href}

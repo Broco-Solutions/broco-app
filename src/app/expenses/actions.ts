@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { isAuthenticated } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import { createExpense, updateExpense, deleteExpense, expenseSchema, getExpense, createExpenseBatch as batchCreate, bulkUpdateExpenses as bulkUpdateSvc } from "@/server/services/expenses";
 
 type R = { success: true } | { success: false; message: string };
@@ -9,7 +9,7 @@ function pn(v: FormDataEntryValue | null) { if (!v || v === "") return undefined
 
 export async function saveExpense(_prev: R | null, fd: FormData): Promise<R> {
   try {
-    if (!isAuthenticated()) throw new Error("Sesion expirada.");
+    await requireRole("ADMIN");
     const data = expenseSchema.parse({
       expenseCategoryId: fd.get("expenseCategoryId"), projectId: fd.get("projectId") || null,
       type: fd.get("type"), concept: fd.get("concept"), notes: fd.get("notes") || null,
@@ -24,13 +24,13 @@ export async function saveExpense(_prev: R | null, fd: FormData): Promise<R> {
 }
 
 export async function removeExpense(_prev: R | null, fd: FormData): Promise<R> {
-  try { if (!isAuthenticated()) throw new Error("Sesion expirada."); await deleteExpense(fd.get("id") as string); revalidatePath("/expenses"); return { success: true }; }
+  try { await requireRole("ADMIN"); await deleteExpense(fd.get("id") as string); revalidatePath("/expenses"); return { success: true }; }
   catch (e) { return { success: false, message: e instanceof Error ? e.message : "Error." }; }
 }
 
 export async function payExpense(_prev: R | null, fd: FormData): Promise<R> {
   try {
-    if (!isAuthenticated()) throw new Error("Sesion expirada.");
+    await requireRole("ADMIN");
     const id = fd.get("id") as string;
     const e = await getExpense(id);
     const data = expenseSchema.parse({
@@ -53,7 +53,7 @@ export async function createExpenseBatch(entries: Array<{
   dueDate?: string | null; effectiveDate?: string | null;
 }>): Promise<R> {
   try {
-    if (!isAuthenticated()) throw new Error("Sesion expirada.");
+    await requireRole("ADMIN");
     await batchCreate(entries);
     revalidatePath("/expenses");
     return { success: true };
@@ -62,7 +62,7 @@ export async function createExpenseBatch(entries: Array<{
 
 export async function bulkUpdateExpenses(ids: string[], updates: Record<string, unknown>): Promise<R> {
   try {
-    if (!isAuthenticated()) throw new Error("Sesion expirada.");
+    await requireRole("ADMIN");
     await bulkUpdateSvc(ids, updates as any);
     revalidatePath("/expenses");
     return { success: true };

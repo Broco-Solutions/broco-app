@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { isAuthenticated } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import {
   createPhase,
   updatePhase,
@@ -34,7 +34,7 @@ import {
 export type ActionResult = { success: true } | { success: false; message: string };
 
 async function requireAuth() {
-  if (!isAuthenticated()) throw new Error("Sesión expirada.");
+  await requireRole("ADMIN");
 }
 
 function str(v: FormDataEntryValue | null): string | null {
@@ -64,7 +64,7 @@ export async function savePhase(
   formData: FormData,
 ): Promise<ActionResult> {
   try {
-    requireAuth();
+    await requireAuth();
     const id = str(formData.get("id"));
     const data = phaseInputSchema.parse({
       projectId: str(formData.get("projectId")),
@@ -88,7 +88,7 @@ export async function removePhase(
   formData: FormData,
 ): Promise<ActionResult> {
   try {
-    requireAuth();
+    await requireAuth();
     const id = str(formData.get("id"));
     if (!id) return { success: false, message: "Fase no encontrada." };
     await deletePhase(id);
@@ -107,7 +107,7 @@ export async function saveTask(
   formData: FormData,
 ): Promise<ActionResult> {
   try {
-    requireAuth();
+    await requireAuth();
     const id = str(formData.get("id"));
     const parsed = taskInputSchema.parse({
       projectId: str(formData.get("projectId")),
@@ -146,7 +146,7 @@ export async function removeTask(
   formData: FormData,
 ): Promise<ActionResult> {
   try {
-    requireAuth();
+    await requireAuth();
     const id = str(formData.get("id"));
     if (!id) return { success: false, message: "Tarea no encontrada." };
     await deleteTask(id);
@@ -161,7 +161,7 @@ export async function changeTaskStatus(
   formData: FormData,
 ): Promise<ActionResult> {
   try {
-    requireAuth();
+    await requireAuth();
     const id = str(formData.get("id"));
     const status = str(formData.get("status"));
     if (!id || !status) return { success: false, message: "Datos incompletos." };
@@ -180,7 +180,7 @@ export async function changeTaskPhase(
   formData: FormData,
 ): Promise<ActionResult> {
   try {
-    requireAuth();
+    await requireAuth();
     const id = str(formData.get("id"));
     const phaseId = str(formData.get("phaseId"));
     if (!id) return { success: false, message: "Tarea no encontrada." };
@@ -196,7 +196,7 @@ export async function changeTaskClientVisible(
   formData: FormData,
 ): Promise<ActionResult> {
   try {
-    requireAuth();
+    await requireAuth();
     const id = str(formData.get("id"));
     const visible = bool(formData.get("clientVisible"));
     if (!id || visible === undefined) {
@@ -218,7 +218,7 @@ export async function configureAccessAction(
   formData: FormData,
 ): Promise<{ success: true; slug: string; password: string } | { success: false; message: string }> {
   try {
-    requireAuth();
+    await requireAuth();
     const projectId = str(formData.get("projectId"));
     if (!projectId) return { success: false, message: "Proyecto no encontrado." };
     const password = str(formData.get("password")) ?? undefined;
@@ -234,7 +234,7 @@ export async function revealPasswordAction(
   formData: FormData,
 ): Promise<{ success: true; password: string } | { success: false; message: string }> {
   try {
-    requireAuth();
+    await requireAuth();
     const projectId = str(formData.get("projectId"));
     if (!projectId) return { success: false, message: "Proyecto no encontrado." };
     const password = await revealPassword(projectId);
@@ -249,7 +249,7 @@ export async function changePasswordAction(
   formData: FormData,
 ): Promise<{ success: true; password: string } | { success: false; message: string }> {
   try {
-    requireAuth();
+    await requireAuth();
     const projectId = str(formData.get("projectId"));
     if (!projectId) return { success: false, message: "Proyecto no encontrado." };
     const password = str(formData.get("password")) ?? undefined;
@@ -265,7 +265,7 @@ export async function deactivateAccessAction(
   formData: FormData,
 ): Promise<ActionResult> {
   try {
-    requireAuth();
+    await requireAuth();
     const projectId = str(formData.get("projectId"));
     if (!projectId) return { success: false, message: "Proyecto no encontrado." };
     await revokeShareAccess(projectId);
@@ -280,7 +280,7 @@ export async function activateAccessAction(
   formData: FormData,
 ): Promise<ActionResult> {
   try {
-    requireAuth();
+    await requireAuth();
     const projectId = str(formData.get("projectId"));
     if (!projectId) return { success: false, message: "Proyecto no encontrado." };
     await activateShareAccess(projectId);
@@ -299,7 +299,7 @@ export async function saveSharedFolderAction(
   formData: FormData,
 ): Promise<ActionResult> {
   try {
-    requireAuth();
+    await requireAuth();
     const projectId = str(formData.get("projectId"));
     if (!projectId) return { success: false, message: "Proyecto no encontrado." };
     const url = str(formData.get("url"));
@@ -319,7 +319,7 @@ export async function removeSharedFolderAction(
   formData: FormData,
 ): Promise<ActionResult> {
   try {
-    requireAuth();
+    await requireAuth();
     const projectId = str(formData.get("projectId"));
     if (!projectId) return { success: false, message: "Proyecto no encontrado." };
     await clearClientSharedFolder(projectId);
@@ -334,7 +334,7 @@ export async function changeTaskDatesAction(
   formData: FormData,
 ): Promise<ActionResult> {
   try {
-    requireAuth();
+    await requireAuth();
     const taskId = str(formData.get("taskId"));
     const startDate = str(formData.get("startDate"));
     const endDate = str(formData.get("endDate"));
@@ -353,7 +353,7 @@ export async function reorderTasksAction(
   formData: FormData,
 ): Promise<ActionResult> {
   try {
-    requireAuth();
+    await requireAuth();
     const projectId = str(formData.get("projectId"));
     const phaseId = str(formData.get("phaseId"));
     const raw = formData.get("orderedTaskIds");
@@ -374,7 +374,7 @@ export async function applyProjectTaskChangesAction(
   formData: FormData,
 ): Promise<ActionResult> {
   try {
-    requireAuth();
+    await requireAuth();
     const raw = formData.get("payload");
     if (!raw) return { success: false, message: "Datos incompletos." };
     const payload = JSON.parse(String(raw)) as {

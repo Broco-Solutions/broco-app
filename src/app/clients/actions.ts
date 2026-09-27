@@ -1,13 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { isAuthenticated } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import { createClient, updateClient, deleteClient as deleteClientSvc, clientSchema } from "@/server/services/clients";
 
 type ActionResult = { success: true } | { success: false; message: string };
 
 async function requireAuth() {
-  if (!isAuthenticated()) throw new Error("Sesion expirada.");
+  await requireRole("ADMIN");
 }
 
 export async function saveClient(
@@ -15,7 +15,7 @@ export async function saveClient(
   formData: FormData,
 ): Promise<ActionResult> {
   try {
-    requireAuth();
+    await requireAuth();
     const data = clientSchema.parse({
       name: formData.get("name"),
       contactName: formData.get("contactName") || null,
@@ -44,7 +44,7 @@ export async function removeClient(
   formData: FormData,
 ): Promise<ActionResult> {
   try {
-    requireAuth();
+    await requireAuth();
     await deleteClientSvc(formData.get("id") as string);
     revalidatePath("/clients");
     revalidatePath("/projects");

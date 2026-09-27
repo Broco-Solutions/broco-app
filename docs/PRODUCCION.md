@@ -4,15 +4,16 @@
 
 - Next.js 14 App Router + Prisma + PostgreSQL
 - Server Components para lecturas, Server Actions para mutaciones
-- Autenticacion simple por contrasena de aplicacion (APP_PASSWORD)
-- Sin usuarios, roles ni API routes financieras
+- Auth.js/NextAuth con identidades individuales, roles y sesiones JWT
+- El acceso web no acepta `broco_session`, `APP_PASSWORD` ni contraseñas compartidas
 
 ## Variables requeridas
 
 ```env
 DATABASE_URL=postgresql://...
-APP_PASSWORD=...
-SESSION_SECRET=...
+AUTH_SECRET=...
+PROJECT_SHARE_ENCRYPTION_KEY=...
+PROJECT_SHARE_SESSION_SECRET=...
 ```
 
 ## Preparacion de PostgreSQL
@@ -58,7 +59,7 @@ pnpm build
 Configurar en Vercel (o el proveedor elegido):
 
 1. Conectar repositorio.
-2. Variables de entorno: `DATABASE_URL`, `APP_PASSWORD`, `SESSION_SECRET`.
+2. Variables de entorno: `DATABASE_URL`, `AUTH_SECRET`, `PROJECT_SHARE_ENCRYPTION_KEY`, `PROJECT_SHARE_SESSION_SECRET`.
 3. Comando de build: `prisma generate && next build`.
 4. Comando post-deploy: aplicar cambios de esquema con scripts controlados (`$executeRawUnsafe`, una sentencia por llamada); no usar `prisma migrate deploy` (sin `directUrl`).
 5. Dominio configurado.
@@ -66,7 +67,7 @@ Configurar en Vercel (o el proveedor elegido):
 ## Smoke test posterior
 
 1. Acceder a la URL.
-2. Iniciar sesion con `APP_PASSWORD`.
+2. Iniciar sesión con una cuenta individual creada desde Equipo.
 3. Verificar Dashboard con datos.
 4. Navegar Clientes, Proyectos, Ingresos, Gastos.
 5. Confirmar conteos: 13 clientes, 18 proyectos, 22 ingresos, 46 gastos, 14 categorias.
