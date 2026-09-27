@@ -5,8 +5,8 @@ import { LoginForm } from "@/components/screens/login-form";
 
 const FEATURES = [
   { icon: BriefcaseBusiness, t: "Clientes y proyectos", d: "Seguimiento ordenado." },
-  { icon: CircleDollarSign, t: "Ingresos y gastos", d: "Control sin fricción." },
-  { icon: ChartNoAxesCombined, t: "Indicadores claros", d: "Decisiones a tiempo." },
+  { icon: CircleDollarSign, t: "Ingresos y gastos", d: "Control financiero." },
+  { icon: ChartNoAxesCombined, t: "Tiempos e indicadores", d: "Visibilidad para decidir." },
 ];
 
 export default function LoginPage() {
@@ -31,13 +31,13 @@ export default function LoginPage() {
         <div className="order-2 space-y-8 lg:order-1 lg:space-y-9">
           <div className="space-y-5">
             <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-3 py-1 text-xs font-medium tracking-wide text-slate-600 backdrop-blur">
-              <span className="h-2 w-2 rounded-full bg-cobalt" /> Broco Solutions · Tecnología aplicada
+              <span className="h-2 w-2 rounded-full bg-cobalt" /> Broco Solutions · Plataforma interna
             </div>
             <h1 className="max-w-[14ch] font-display text-[2.5rem] font-semibold leading-[1.02] tracking-[-0.03em] text-ink sm:text-5xl sm:leading-[1.0] lg:text-[3.75rem]">
-              La operación del negocio, en un solo lugar.
+              La operación de Broco, en un solo lugar.
             </h1>
             <p className="max-w-[48ch] text-[15px] leading-7 text-slate-600 sm:text-base sm:leading-8">
-              Gestioná clientes, proyectos, ingresos, gastos e indicadores desde una plataforma clara, centralizada y preparada para acompañar la operación.
+              Gestioná clientes, proyectos, ingresos, gastos, tiempos e indicadores desde una plataforma clara, centralizada y preparada para acompañar la operación.
             </p>
           </div>
 
