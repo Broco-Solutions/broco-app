@@ -14,6 +14,15 @@ export async function hasUsableActivationToken(token: string): Promise<boolean> 
   return Boolean(access);
 }
 
+export async function getUsableActivationAccount(token: string): Promise<{ name: string; email: string } | null> {
+  if (!token) return null;
+  const access = await prisma.accessToken.findFirst({
+    where: { tokenHash: hashAccessToken(token), purpose: "ACTIVATE", usedAt: null, revokedAt: null, expiresAt: { gt: new Date() } },
+    select: { user: { select: { name: true, email: true } } },
+  });
+  return access?.user ?? null;
+}
+
 const ACTIVATION_TTL_MS = 24 * 60 * 60 * 1000;
 
 export async function issueActivationToken(userId: string): Promise<string> {

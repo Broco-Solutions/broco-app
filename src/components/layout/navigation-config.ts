@@ -4,7 +4,16 @@ import {
   LayoutDashboard,
   Activity,
   Layers,
+  ListChecks,
+  Settings2,
+  UserRoundCog,
+  UsersRound,
+  Clock3,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+
+type NavigationChild = { href: string; label: string; icon: LucideIcon };
+type NavigationItem = { href: string; label: string; icon: LucideIcon; children?: readonly NavigationChild[] };
 
 export const navigationItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -12,8 +21,20 @@ export const navigationItems = [
   { href: "/projects", label: "Proyectos", icon: Layers },
   { href: "/incomes", label: "Ingresos", icon: CircleDollarSign },
   { href: "/expenses", label: "Gastos", icon: Activity },
-  { href: "/hours", label: "Tiempos", icon: BriefcaseBusiness },
-  { href: "/hours/reports", label: "Reportes", icon: Activity },
-  { href: "/hours/team", label: "Asignaciones", icon: BriefcaseBusiness },
-  { href: "/users", label: "Administración", icon: BriefcaseBusiness },
-] as const;
+  {
+    href: "/hours",
+    label: "Tiempos",
+    icon: Clock3,
+    children: [
+      { href: "/hours", label: "Registros", icon: ListChecks },
+      { href: "/hours/reports", label: "Reportes", icon: Activity },
+      { href: "/hours/team", label: "Asignaciones", icon: UserRoundCog },
+    ],
+  },
+  {
+    href: "/users",
+    label: "Administración",
+    icon: Settings2,
+    children: [{ href: "/users", label: "Usuarios", icon: UsersRound }],
+  },
+] satisfies readonly NavigationItem[];

@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { hash } from "bcryptjs";
 import { randomBytes } from "node:crypto";
 import { requireRole } from "@/lib/auth";
@@ -28,11 +27,15 @@ export async function saveUser(formData: FormData) {
   revalidatePath("/hours");
 }
 
-export async function createActivationLink(formData: FormData) {
+export async function createActivationLink(formData: FormData): Promise<{ success: true; path: string } | { success: false; message: string }> {
   await requireRole("ADMIN");
   const userId = String(formData.get("userId") ?? "");
-  const raw = await issueActivationToken(userId);
-  redirect(`/hours/activate?token=${encodeURIComponent(raw)}`);
+  try {
+    const raw = await issueActivationToken(userId);
+    return { success: true, path: `/hours/activate?token=${encodeURIComponent(raw)}` };
+  } catch (cause) {
+    return { success: false, message: cause instanceof Error ? cause.message : "No se pudo generar el enlace." };
+  }
 }
 
 export async function toggleUser(formData: FormData) {

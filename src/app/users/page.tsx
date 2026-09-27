@@ -3,7 +3,8 @@ import { prisma } from "@/server/prisma";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { saveUser, toggleUser, createActivationLink } from "./actions";
+import { saveUser, toggleUser } from "./actions";
+import { ActivationLinkControl } from "./activation-link-control";
 
 export const dynamic = "force-dynamic";
 
@@ -28,9 +29,9 @@ export default async function UsersPage() {
           <div><h2 className="font-semibold">{user.name}</h2><p className="text-sm text-gray-500">{user.email} · {user.role === "ADMIN" ? "Administrador" : "Colaborador"}</p><p className="mt-1 text-xs font-medium text-gray-500">{user.isActive ? "Activo" : "Inactivo / pendiente de activación"}</p></div>
           <div className="flex flex-wrap gap-2">
             <form action={toggleUser}><input type="hidden" name="id" value={user.id} /><input type="hidden" name="active" value={String(user.isActive)} /><Button variant="secondary" type="submit">{user.isActive ? "Desactivar" : "Activar"}</Button></form>
-            {!user.isActive ? <form action={createActivationLink}><input type="hidden" name="userId" value={user.id} /><Button type="submit" variant="ghost">Generar enlace seguro</Button></form> : null}
           </div>
         </div>
+        {!user.isActive ? <ActivationLinkControl userId={user.id} userName={user.name} /> : null}
         <details className="mt-4"><summary className="cursor-pointer text-sm font-medium text-brand">Editar datos de cuenta</summary><form action={saveUser} className="mt-3 grid gap-3 md:grid-cols-4"><input type="hidden" name="id" value={user.id} /><input name="name" required defaultValue={user.name} aria-label={`Nombre de ${user.name}`} className="h-10 rounded-lg border border-gray-200 px-3 text-sm" /><input name="email" required type="email" defaultValue={user.email} aria-label={`Correo de ${user.name}`} className="h-10 rounded-lg border border-gray-200 px-3 text-sm" /><select name="role" defaultValue={user.role} aria-label={`Rol de ${user.name}`} className="h-10 rounded-lg border border-gray-200 px-3 text-sm"><option value="COLLABORATOR">Colaborador</option><option value="ADMIN">Administrador</option></select><Button type="submit">Guardar cambios</Button></form></details>
       </Card>)}
     </div>
