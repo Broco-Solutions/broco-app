@@ -2,12 +2,13 @@ import { beforeAll, afterAll, describe, expect, it } from "vitest";
 import { prisma } from "@/server/prisma";
 import { createTimeEntry, getHourReport, listTimeEntries, updateTimeEntry, voidTimeEntry } from "@/server/services/hours";
 import { deleteProject } from "@/server/services/projects";
+import { todayKeyArgentina, toUtcDate } from "@/lib/dates";
 import type { CurrentUser } from "@/lib/auth";
 
 const testDb = process.env.DATABASE_URL_TEST;
 const suite = testDb ? describe : describe.skip;
-const today = new Date().toISOString().slice(0, 10);
-const future = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+const today = todayKeyArgentina();
+const future = new Date(toUtcDate(today).getTime() + 86400000).toISOString().slice(0, 10);
 let admin: CurrentUser; let collaboratorA: CurrentUser; let collaboratorB: CurrentUser; let projectA = ""; let projectB = "";
 
 suite("Horas V1", () => {
@@ -48,8 +49,10 @@ suite("Horas V1", () => {
 
   it("anula fuera de totales y exige motivo para corregir un registro ajeno", async () => {
     const entry = await createTimeEntry(collaboratorA, { userId: collaboratorA.id, projectId: projectA, workDate: today, minutes: 20, description: "Para auditar", referenceUrl: null, idempotencyKey: crypto.randomUUID() });
-    await expect(updateTimeEntry(admin, entry.id, { projectId: projectA, workDate: today, minutes: 30, description: "Corregido", referenceUrl: null }, "")).rejects.toThrow("motivo");
-    await updateTimeEntry(admin, entry.id, { projectId: projectA, workDate: today, minutes: 30, description: "Corregido", referenceUrl: null }, "Corrección administrativa");
+    await expect(updateTimeEntry(admin, entry.id, { projectId: projectA, workDate: today, minutes: 30, description: "Corregido", referenceUrl: null }, "", "")).rejects.toThrow("motivo");
+    await expect(updateTimeEntry(admin, entry.id, { projectId: projectA, workDate: today, minutes: 30, description: "Corregido", referenceUrl: null }, "Corrección administrativa", "")).rejects.toThrow("versión");
+    const current = await prisma.timeEntry.findUniqueOrThrow({ where: { id: entry.id }, select: { updatedAt: true } });
+    await updateTimeEntry(admin, entry.id, { projectId: projectA, workDate: today, minutes: 30, description: "Corregido", referenceUrl: null }, "Corrección administrativa", current.updatedAt.toISOString());
     await voidTimeEntry(admin, entry.id, "Carga duplicada");
     const report = await getHourReport(admin, { from: today, to: today, userId: collaboratorA.id });
     expect(report.entries.some((item) => item.id === entry.id && item.status === "VOID")).toBe(true);

@@ -39,7 +39,7 @@ export async function updateEntry(_prev: Result | null, formData: FormData): Pro
     if (!Number.isFinite(amount) || amount <= 0 || (unit === "MINUTES" && !Number.isInteger(amount))) throw new Error("Duración inválida.");
     const exact = unit === "HOURS" ? amount * 60 : amount; const minutes = Math.round(exact);
     if (exact !== minutes) throw new Error(`La duración se redondearía a ${minutes} minutos.`);
-    const result = await updateTimeEntry(actor, String(formData.get("id")), { projectId: String(formData.get("projectId")), workDate: String(formData.get("workDate")), minutes, description: String(formData.get("description") ?? ""), referenceUrl: formData.get("referenceUrl") ? String(formData.get("referenceUrl")) : null }, String(formData.get("reason") ?? ""), String(formData.get("expectedUpdatedAt") ?? "") || undefined);
+    const result = await updateTimeEntry(actor, String(formData.get("id")), { projectId: String(formData.get("projectId")), workDate: String(formData.get("workDate")), minutes, description: String(formData.get("description") ?? ""), referenceUrl: formData.get("referenceUrl") ? String(formData.get("referenceUrl")) : null }, String(formData.get("reason") ?? ""), String(formData.get("expectedUpdatedAt") ?? ""));
     revalidatePath("/hours"); revalidatePath("/hours/reports"); return { success: true, id: result.id };
   } catch (error) { return { success: false, message: error instanceof Error ? error.message : "No se pudo corregir." }; }
 }

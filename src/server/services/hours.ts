@@ -100,16 +100,15 @@ export async function voidTimeEntry(actor: CurrentUser, id: string, reason: stri
   return updated;
 }
 
-export async function updateTimeEntry(actor: CurrentUser, id: string, input: Omit<TimeEntryInput, "userId" | "idempotencyKey">, reason: string, expectedUpdatedAt?: string) {
+export async function updateTimeEntry(actor: CurrentUser, id: string, input: Omit<TimeEntryInput, "userId" | "idempotencyKey">, reason: string, expectedUpdatedAt: string) {
   const parsed = entrySchema.omit({ userId: true, idempotencyKey: true }).parse(input);
   const current = await prisma.timeEntry.findUnique({ where: { id }, select: { id: true, userId: true, projectId: true, workDate: true, minutes: true, description: true, referenceUrl: true, status: true, createdById: true, modifiedById: true, voidReason: true, createdAt: true, updatedAt: true, project: { select: { id: true, name: true, client: { select: { id: true, name: true } } } } } });
   if (!current || current.status !== "ACTIVE") throw new Error("Registro inexistente o anulado.");
   if (actor.role !== "ADMIN" && current.userId !== actor.id) throw new Error("No autorizado.");
   if (current.userId !== actor.id && !reason.trim()) throw new Error("El motivo es obligatorio para corregir un registro ajeno.");
-  if (expectedUpdatedAt) {
-    const expected = new Date(expectedUpdatedAt);
-    if (Number.isNaN(expected.getTime()) || current.updatedAt.getTime() !== expected.getTime()) throw new Error("El registro cambió; actualizá la lista antes de corregirlo.");
-  }
+  if (!expectedUpdatedAt) throw new Error("La corrección requiere una versión de la lista. Actualizá e intentá de nuevo.");
+  const expected = new Date(expectedUpdatedAt);
+  if (Number.isNaN(expected.getTime()) || current.updatedAt.getTime() !== expected.getTime()) throw new Error("El registro cambió; actualizá la lista antes de corregirlo.");
   assertDate(parsed.workDate);
   const updated = await prisma.$transaction(async (tx) => {
     const keys = [...new Set([current.workDate.toISOString().slice(0, 10), parsed.workDate])].sort();

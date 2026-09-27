@@ -33,8 +33,8 @@ const money = z.discriminatedUnion("moneda", [
   z.object({ moneda: z.literal("ARS"), monto: number, tipoCambio: number }).strict(),
 ]);
 const pending = z.object({ estado: z.literal("PENDING"), vencimiento: date }).strict();
-const paidIncome = z.object({ estado: z.literal("PAID"), fechaCobro: date, vencimiento: date.nullable().optional() }).strict();
-const paidExpense = z.object({ estado: z.literal("PAID"), fechaPago: date, vencimiento: date.nullable().optional() }).strict();
+const paidIncome = z.object({ estado: z.literal("PAID"), fechaCobro: date, vencimiento: z.null().optional() }).strict();
+const paidExpense = z.object({ estado: z.literal("PAID"), fechaPago: date, vencimiento: z.null().optional() }).strict();
 
 const writeMetadata = (destructive = false, idempotent = false) => ({
   annotations: { readOnlyHint: false, destructiveHint: destructive, idempotentHint: idempotent, openWorldHint: false },
