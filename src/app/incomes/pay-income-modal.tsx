@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ModalPortal } from "@/components/ui/modal-portal";
+import { todayKeyArgentina } from "@/lib/dates";
 
 export function PayIncomeModal({
   open, income, onClose, onConfirm,
@@ -14,7 +15,7 @@ export function PayIncomeModal({
     client?: { name: string } | null; project?: { name: string } | null; } | null;
   onClose: () => void; onConfirm: (d: Record<string, unknown>) => Promise<void>;
 }) {
-  const [effDate, setEffDate] = useState(new Date().toISOString().slice(0, 10));
+  const [effDate, setEffDate] = useState(todayKeyArgentina);
   const [useArs, setUseArs] = useState(income?.amountArs != null);
   const [amountUsd, setAmountUsd] = useState(income ? (typeof income.amountUsd === "object" ? String(income.amountUsd) : String(income.amountUsd)) : "");
   const [amountArs, setAmountArs] = useState(income?.amountArs ? String(income.amountArs) : "");
@@ -27,7 +28,7 @@ export function PayIncomeModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); setError(null); setSaving(true);
     try {
-      await onConfirm({ effectiveDate: effDate, amountUsd: useArs ? null : amountUsd, amountArs: useArs ? amountArs : null, exchangeRate: useArs ? fx : null });
+      await onConfirm({ currency: useArs ? "ARS" : "USD", effectiveDate: effDate, amountUsd: useArs ? null : amountUsd, amountArs: useArs ? amountArs : null, exchangeRate: useArs ? fx : null });
       onClose();
     } catch (err) { setError(err instanceof Error ? err.message : "Error."); }
     finally { setSaving(false); }

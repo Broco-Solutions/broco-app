@@ -3,6 +3,8 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/server/prisma";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { canonicalFinancialDates } from "@/lib/financial-state";
+import { isValidCalendarDateKey, toUtcDate } from "@/lib/dates";
 
 const D = Prisma.Decimal;
 
@@ -189,16 +191,15 @@ export async function getExpense(id: string) {
 export async function createExpense(input: ExpenseInput) {
   const data = expenseSchema.parse(input);
   await validateExpenseReferences(data.expenseCategoryId, data.projectId);
-  if (data.status === "PENDING" && !data.dueDate) throw new Error("La fecha de vencimiento es obligatoria.");
-  if (data.status === "PAID" && !data.effectiveDate) throw new Error("La fecha de pago es obligatoria.");
+  const dates = canonicalFinancialDates(data.status, data.dueDate, data.effectiveDate, "pago");
   const money = computeMoney(data);
   const e = await prisma.expense.create({
     data: {
       expenseCategoryId: data.expenseCategoryId, projectId: data.projectId ?? null,
       type: data.type as "FIXED" | "VARIABLE", concept: data.concept, notes: data.notes?.trim() || null,
       status: data.status as "PAID" | "PENDING", ...money,
-      dueDate: data.dueDate ? new Date(data.dueDate) : null,
-      effectiveDate: data.status === "PAID" ? new Date(data.effectiveDate!) : null,
+      dueDate: dates.dueDate ? toUtcDate(dates.dueDate) : null,
+      effectiveDate: dates.effectiveDate ? toUtcDate(dates.effectiveDate) : null,
     },
   });
   revalidatePath("/expenses");
@@ -208,8 +209,7 @@ export async function createExpense(input: ExpenseInput) {
 export async function updateExpense(id: string, input: ExpenseInput) {
   const data = expenseSchema.parse(input);
   await validateExpenseReferences(data.expenseCategoryId, data.projectId);
-  if (data.status === "PENDING" && !data.dueDate) throw new Error("La fecha de vencimiento es obligatoria.");
-  if (data.status === "PAID" && !data.effectiveDate) throw new Error("La fecha de pago es obligatoria.");
+  const dates = canonicalFinancialDates(data.status, data.dueDate, data.effectiveDate, "pago");
   const money = computeMoney(data);
   const e = await prisma.expense.update({
     where: { id },
@@ -217,8 +217,8 @@ export async function updateExpense(id: string, input: ExpenseInput) {
       expenseCategoryId: data.expenseCategoryId, projectId: data.projectId ?? null,
       type: data.type as "FIXED" | "VARIABLE", concept: data.concept, notes: data.notes?.trim() || null,
       status: data.status as "PAID" | "PENDING", ...money,
-      dueDate: data.dueDate ? new Date(data.dueDate) : null,
-      effectiveDate: data.status === "PAID" ? new Date(data.effectiveDate!) : null,
+      dueDate: dates.dueDate ? toUtcDate(dates.dueDate) : null,
+      effectiveDate: dates.effectiveDate ? toUtcDate(dates.effectiveDate) : null,
     },
   });
   revalidatePath("/expenses");
@@ -243,8 +243,7 @@ export async function createExpenseBatch(entries: BatchEntry[]) {
   await prisma.$transaction(async (tx) => {
     for (const entry of entries) {
       const data = expenseSchema.parse(entry);
-      if (data.status === "PENDING" && !data.dueDate) throw new Error("La fecha de vencimiento es obligatoria.");
-      if (data.status === "PAID" && !data.effectiveDate) throw new Error("La fecha de pago es obligatoria.");
+      const dates = canonicalFinancialDates(data.status, data.dueDate, data.effectiveDate, "pago");
       const money = computeMoney(data);
       await tx.expense.create({
         data: {
@@ -255,8 +254,8 @@ export async function createExpenseBatch(entries: BatchEntry[]) {
           notes: data.notes?.trim() || null,
           status: data.status as "PAID" | "PENDING",
           ...money,
-          dueDate: data.dueDate ? new Date(data.dueDate) : null,
-          effectiveDate: data.status === "PAID" ? new Date(data.effectiveDate!) : null,
+          dueDate: dates.dueDate ? toUtcDate(dates.dueDate) : null,
+          effectiveDate: dates.effectiveDate ? toUtcDate(dates.effectiveDate) : null,
         },
       });
     }
@@ -277,11 +276,10 @@ export async function bulkUpdateExpenses(ids: string[], updates: {
   if (updates.type) data.type = updates.type;
   if (updates.status) {
     if (updates.status !== "PAID" && updates.status !== "PENDING") throw new Error("Estado no válido.");
-    if (!updates.statusDate || !/^\d{4}-\d{2}-\d{2}$/.test(updates.statusDate)) {
+    if (!updates.statusDate || !isValidCalendarDateKey(updates.statusDate)) {
       throw new Error("Indica la fecha correspondiente al nuevo estado.");
     }
-    const statusDate = new Date(`${updates.statusDate}T00:00:00.000Z`);
-    if (Number.isNaN(statusDate.getTime())) throw new Error("La fecha del nuevo estado no es válida.");
+    const statusDate = toUtcDate(updates.statusDate);
     data.status = updates.status;
     data.dueDate = updates.status === "PENDING" ? statusDate : null;
     data.effectiveDate = updates.status === "PAID" ? statusDate : null;

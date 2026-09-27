@@ -170,9 +170,9 @@ export function ExpenseList({ initial, categories: cats, projects: projs, client
     } catch (err) { setFormErr(err instanceof Error ? err.message : "Error."); } finally { setFormSaving(false); }
   };
 
-  const [payForm, setPayForm] = useState({ effectiveDate: new Date().toISOString().slice(0,10), useArs: false, amountUsd: "", amountArs: "", exchangeRate: "" });
-  const openPay = (e: E) => { setPayTarget(e); setPayError(null); setPayForm({ effectiveDate: new Date().toISOString().slice(0,10), useArs: e.amountArs != null, amountUsd: e.amountUsd ? String(e.amountUsd) : "", amountArs: e.amountArs ? String(e.amountArs) : "", exchangeRate: e.exchangeRate ? String(e.exchangeRate) : "" }); };
-  const handlePay = async (ev: React.FormEvent) => { ev.preventDefault(); if (!payTarget || paySaving) return; setPayError(null); setPaySaving(true); const fd = new FormData(); fd.set("id", payTarget.id); fd.set("effectiveDate", payForm.effectiveDate);
+  const [payForm, setPayForm] = useState({ effectiveDate: todayKeyArgentina(), useArs: false, amountUsd: "", amountArs: "", exchangeRate: "" });
+  const openPay = (e: E) => { setPayTarget(e); setPayError(null); setPayForm({ effectiveDate: todayKeyArgentina(), useArs: e.amountArs != null, amountUsd: e.amountUsd ? String(e.amountUsd) : "", amountArs: e.amountArs ? String(e.amountArs) : "", exchangeRate: e.exchangeRate ? String(e.exchangeRate) : "" }); };
+  const handlePay = async (ev: React.FormEvent) => { ev.preventDefault(); if (!payTarget || paySaving) return; setPayError(null); setPaySaving(true); const fd = new FormData(); fd.set("id", payTarget.id); fd.set("effectiveDate", payForm.effectiveDate); fd.set("currency", payForm.useArs ? "ARS" : "USD");
     if (payForm.useArs) { fd.set("amountArs", payForm.amountArs); fd.set("exchangeRate", payForm.exchangeRate); } else fd.set("amountUsd", payForm.amountUsd);
     const result = await payExpense(null, fd);
     if (result.success) { setPayTarget(null); reload(); } else { setPayError(result.message); } setPaySaving(false); };

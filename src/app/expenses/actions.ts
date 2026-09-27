@@ -6,6 +6,12 @@ import { createExpense, updateExpense, deleteExpense, expenseSchema, getExpense,
 
 type R = { success: true } | { success: false; message: string };
 function pn(v: FormDataEntryValue | null) { if (!v || v === "") return undefined; const n = Number(v); return Number.isFinite(n) ? n : undefined; }
+function parsePaymentMoney(fd: FormData) {
+  const currency = String(fd.get("currency") ?? "");
+  if (currency === "USD") return { amountUsd: pn(fd.get("amountUsd")), amountArs: null, exchangeRate: null };
+  if (currency === "ARS") return { amountUsd: null, amountArs: pn(fd.get("amountArs")), exchangeRate: pn(fd.get("exchangeRate")) };
+  throw new Error("Moneda de pago inválida.");
+}
 
 export async function saveExpense(_prev: R | null, fd: FormData): Promise<R> {
   try {
@@ -33,12 +39,11 @@ export async function payExpense(_prev: R | null, fd: FormData): Promise<R> {
     await requireRole("ADMIN");
     const id = fd.get("id") as string;
     const e = await getExpense(id);
+    const money = parsePaymentMoney(fd);
     const data = expenseSchema.parse({
       expenseCategoryId: e.expenseCategoryId, projectId: e.projectId, type: e.type, concept: e.concept, notes: e.notes,
-      status: "PAID", amountUsd: pn(fd.get("amountUsd")) ?? Number(e.amountUsd),
-      amountArs: pn(fd.get("amountArs")) ?? (e.amountArs ? Number(e.amountArs) : undefined),
-      exchangeRate: pn(fd.get("exchangeRate")) ?? (e.exchangeRate ? Number(e.exchangeRate) : undefined),
-      dueDate: e.dueDate?.toISOString().slice(0, 10) ?? null, effectiveDate: fd.get("effectiveDate") as string,
+      status: "PAID", ...money,
+      dueDate: null, effectiveDate: fd.get("effectiveDate") as string,
     });
     await updateExpense(id, data);
     revalidatePath("/expenses");

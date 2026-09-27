@@ -3,6 +3,8 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/server/prisma";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { canonicalFinancialDates } from "@/lib/financial-state";
+import { isValidCalendarDateKey, toUtcDate } from "@/lib/dates";
 
 const D = Prisma.Decimal;
 
@@ -85,13 +87,8 @@ async function resolveIncomeClient(projectId: string | null | undefined, clientI
   return clientId ?? null;
 }
 
-function validateDates(data: IncomeInput) {
-  if (data.status === "PENDING" && !data.dueDate) {
-    throw new Error("La fecha de vencimiento es obligatoria para ingresos pendientes.");
-  }
-  if (data.status === "PAID" && !data.effectiveDate) {
-    throw new Error("La fecha de cobro es obligatoria para ingresos pagados.");
-  }
+function canonicalIncomeDates(data: IncomeInput) {
+  return canonicalFinancialDates(data.status, data.dueDate, data.effectiveDate, "cobro");
 }
 
 
@@ -270,7 +267,7 @@ export async function createIncome(input: IncomeInput) {
   // Resolve client from project
   const clientId = await resolveIncomeClient(data.projectId, data.clientId);
 
-  validateDates(data);
+  const dates = canonicalIncomeDates(data);
 
   const money = computeMoney(data);
 
@@ -283,8 +280,8 @@ export async function createIncome(input: IncomeInput) {
       notes: data.notes?.trim() || null,
       status: data.status as "PAID" | "PENDING",
       ...money,
-      dueDate: data.dueDate ? new Date(data.dueDate) : null,
-      effectiveDate: data.status === "PAID" ? new Date(data.effectiveDate!) : null,
+      dueDate: dates.dueDate ? toUtcDate(dates.dueDate) : null,
+      effectiveDate: dates.effectiveDate ? toUtcDate(dates.effectiveDate) : null,
     },
   });
   revalidatePath("/incomes");
@@ -297,7 +294,7 @@ export async function updateIncome(id: string, input: IncomeInput) {
 
   const clientId = await resolveIncomeClient(data.projectId, data.clientId);
 
-  validateDates(data);
+  const dates = canonicalIncomeDates(data);
 
   const money = computeMoney(data);
 
@@ -311,8 +308,8 @@ export async function updateIncome(id: string, input: IncomeInput) {
       notes: data.notes?.trim() || null,
       status: data.status as "PAID" | "PENDING",
       ...money,
-      dueDate: data.dueDate ? new Date(data.dueDate) : null,
-      effectiveDate: data.status === "PAID" ? new Date(data.effectiveDate!) : null,
+      dueDate: dates.dueDate ? toUtcDate(dates.dueDate) : null,
+      effectiveDate: dates.effectiveDate ? toUtcDate(dates.effectiveDate) : null,
     },
   });
   revalidatePath("/incomes");
@@ -346,8 +343,7 @@ export async function createIncomeBatch(entries: BatchEntry[]) {
       if (incomeType.requiresProject && !data.projectId) {
         throw new Error(`El tipo requiere un proyecto asociado (${data.concept}).`);
       }
-      if (data.status === "PENDING" && !data.dueDate) throw new Error("La fecha de vencimiento es obligatoria.");
-      if (data.status === "PAID" && !data.effectiveDate) throw new Error("La fecha de cobro es obligatoria.");
+      const dates = canonicalIncomeDates(data);
       const money = computeMoney(data);
       await tx.income.create({
         data: {
@@ -358,8 +354,8 @@ export async function createIncomeBatch(entries: BatchEntry[]) {
           notes: data.notes?.trim() || null,
           status: data.status as "PAID" | "PENDING",
           ...money,
-          dueDate: data.dueDate ? new Date(data.dueDate) : null,
-          effectiveDate: data.status === "PAID" ? new Date(data.effectiveDate!) : null,
+          dueDate: dates.dueDate ? toUtcDate(dates.dueDate) : null,
+          effectiveDate: dates.effectiveDate ? toUtcDate(dates.effectiveDate) : null,
         },
       });
     }
@@ -379,11 +375,10 @@ export async function bulkUpdateIncomes(ids: string[], updates: {
   if (updates.typeId) data.typeId = updates.typeId;
   if (updates.status) {
     if (updates.status !== "PAID" && updates.status !== "PENDING") throw new Error("Estado no válido.");
-    if (!updates.statusDate || !/^\d{4}-\d{2}-\d{2}$/.test(updates.statusDate)) {
+    if (!updates.statusDate || !isValidCalendarDateKey(updates.statusDate)) {
       throw new Error("Indica la fecha correspondiente al nuevo estado.");
     }
-    const statusDate = new Date(`${updates.statusDate}T00:00:00.000Z`);
-    if (Number.isNaN(statusDate.getTime())) throw new Error("La fecha del nuevo estado no es válida.");
+    const statusDate = toUtcDate(updates.statusDate);
     data.status = updates.status;
     data.dueDate = updates.status === "PENDING" ? statusDate : null;
     data.effectiveDate = updates.status === "PAID" ? statusDate : null;

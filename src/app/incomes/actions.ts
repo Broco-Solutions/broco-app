@@ -16,6 +16,17 @@ function parseNum(v: FormDataEntryValue | null): number | undefined {
   return Number.isFinite(n) ? n : undefined;
 }
 
+function parsePaymentMoney(formData: FormData) {
+  const currency = String(formData.get("currency") ?? "");
+  if (currency === "USD") {
+    return { amountUsd: parseNum(formData.get("amountUsd")), amountArs: null, exchangeRate: null };
+  }
+  if (currency === "ARS") {
+    return { amountUsd: null, amountArs: parseNum(formData.get("amountArs")), exchangeRate: parseNum(formData.get("exchangeRate")) };
+  }
+  throw new Error("Moneda de cobro inválida.");
+}
+
 export async function saveIncome(_prev: ActionResult | null, formData: FormData): Promise<ActionResult> {
   try {
     await requireAuth();
@@ -58,12 +69,11 @@ export async function payIncome(_prev: ActionResult | null, formData: FormData):
     await requireAuth();
     const id = formData.get("id") as string;
     const inc = await import("@/server/services/incomes").then((m) => m.getIncome(id));
+    const money = parsePaymentMoney(formData);
     const data = incomeSchema.parse({
       projectId: inc.projectId, clientId: inc.clientId, typeId: inc.typeId, concept: inc.concept, notes: inc.notes,
-      status: "PAID", amountUsd: parseNum(formData.get("amountUsd")) ?? Number(inc.amountUsd),
-      amountArs: parseNum(formData.get("amountArs")) ?? (inc.amountArs ? Number(inc.amountArs) : undefined),
-      exchangeRate: parseNum(formData.get("exchangeRate")) ?? (inc.exchangeRate ? Number(inc.exchangeRate) : undefined),
-      dueDate: inc.dueDate?.toISOString().slice(0, 10) ?? null, effectiveDate: formData.get("effectiveDate") as string,
+      status: "PAID", ...money,
+      dueDate: null, effectiveDate: formData.get("effectiveDate") as string,
     });
     await updateIncome(id, data);
     revalidatePath("/incomes");

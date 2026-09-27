@@ -112,7 +112,7 @@ export function IncomeList({ initialIncomes, projects, clients, incomeTypes }: {
   };
   const handlePay = async (data: Record<string, unknown>) => {
     if (!payTarget) return;
-    const fd = mkFd({ effectiveDate: data.effectiveDate, amountUsd: data.amountUsd, amountArs: data.amountArs, exchangeRate: data.exchangeRate }, payTarget.id);
+    const fd = mkFd({ currency: data.currency, effectiveDate: data.effectiveDate, amountUsd: data.amountUsd, amountArs: data.amountArs, exchangeRate: data.exchangeRate }, payTarget.id);
     const result = await payIncome(null, fd);
     if (!result.success) throw new Error(result.message);
     setPayTarget(null); reload();

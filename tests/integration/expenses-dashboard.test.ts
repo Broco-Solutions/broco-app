@@ -74,10 +74,10 @@ describe.skipIf(skip)("Gastos", () => {
     const e = await createExpense({ expenseCategoryId: catId, type: "VARIABLE", concept: "Proj", status: "PAID", projectId, amountUsd: 75, effectiveDate: "2026-01-01" }); track(e.id);
     expect(e.projectId).toBe(projectId);
   });
-  it("9. marca gasto como pagado conservando dueDate", async () => {
+  it("9. marca gasto como pagado y limpia dueDate", async () => {
     const e = await createExpense({ expenseCategoryId: catId, type: "FIXED", concept: "ToPay", status: "PENDING", amountUsd: 25, dueDate: "2026-06-01" }); track(e.id);
     const paid = await updateExpense(e.id, { expenseCategoryId: catId, type: "FIXED", concept: "ToPay", status: "PAID", amountUsd: 30, effectiveDate: "2026-05-01", dueDate: e.dueDate?.toISOString().slice(0, 10) ?? null });
-    expect(paid.status).toBe("PAID"); expect(paid.effectiveDate).not.toBeNull(); expect(paid.dueDate).not.toBeNull(); expect(Number(paid.amountUsd)).toBe(30);
+    expect(paid.status).toBe("PAID"); expect(paid.effectiveDate).not.toBeNull(); expect(paid.dueDate).toBeNull(); expect(Number(paid.amountUsd)).toBe(30);
   });
   it("10. edita gasto pagado", async () => {
     const e = await createExpense({ expenseCategoryId: catId, type: "FIXED", concept: "Edit me", status: "PAID", amountUsd: 100, effectiveDate: "2026-01-01" }); track(e.id);

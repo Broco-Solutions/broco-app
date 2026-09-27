@@ -125,7 +125,7 @@ describe.skipIf(skip)("Ingresos - integracion", () => {
     expect(inc.effectiveDate).toBeNull();
   });
 
-  it("8. marca pendiente como cobrado conservando dueDate", async () => {
+  it("8. marca pendiente como cobrado y limpia dueDate", async () => {
     const inc = await createIncome({
       typeId: otherTypeId, concept: "To Pay", status: "PENDING",
       amountUsd: 75, dueDate: "2026-06-01",
@@ -137,7 +137,7 @@ describe.skipIf(skip)("Ingresos - integracion", () => {
     });
     expect(paid.status).toBe("PAID");
     expect(paid.effectiveDate).not.toBeNull();
-    expect(paid.dueDate).not.toBeNull();
+    expect(paid.dueDate).toBeNull();
     expect(Number(paid.amountUsd)).toBe(80);
   });
 
