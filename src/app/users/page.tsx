@@ -28,7 +28,7 @@ export default async function UsersPage() {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div><h2 className="font-semibold">{user.name}</h2><p className="text-sm text-gray-500">{user.email} · {user.role === "ADMIN" ? "Administrador" : "Colaborador"}</p><p className="mt-1 text-xs font-medium text-gray-500">{user.isActive ? "Activo" : "Inactivo / pendiente de activación"}</p></div>
           <div className="flex flex-wrap gap-2">
-            <form action={toggleUser}><input type="hidden" name="id" value={user.id} /><input type="hidden" name="active" value={String(user.isActive)} /><Button variant="secondary" type="submit">{user.isActive ? "Desactivar" : "Activar"}</Button></form>
+            {user.isActive ? <form action={toggleUser}><input type="hidden" name="id" value={user.id} /><input type="hidden" name="active" value="true" /><Button variant="secondary" type="submit">Desactivar</Button></form> : null}
           </div>
         </div>
         {!user.isActive ? <ActivationLinkControl userId={user.id} userName={user.name} /> : null}
