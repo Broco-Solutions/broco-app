@@ -70,19 +70,19 @@ export function ClientList({ clients: initial }: { clients: Client[] }) {
   return (
     <>
       {/* Totalizador, busqueda y boton nuevo */}
-      <div className="rounded-lg border border-gray-200 bg-white px-4 py-2.5 flex items-center justify-between gap-4">
+      <div className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         <div className="flex items-center gap-2">
           <span className="text-xs font-medium uppercase tracking-wider text-gray-500">Total de clientes</span>
           <span className="text-lg font-bold tabular-nums text-gray-900">{filtered.length}</span>
         </div>
-        <div className="flex items-center gap-2 flex-1 max-w-md">
+        <div className="flex w-full min-w-0 items-center gap-2 sm:max-w-md sm:flex-1">
           <Input
             placeholder="Buscar cliente…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <Button type="button" onClick={() => { setEditing(null); setShowForm(true); }}>Nuevo cliente</Button>
+        <Button type="button" className="w-full sm:w-auto" onClick={() => { setEditing(null); setShowForm(true); }}>Nuevo cliente</Button>
       </div>
       {/* DESKTOP TABLE */}
       <div className="hidden md:block">
@@ -123,13 +123,13 @@ export function ClientList({ clients: initial }: { clients: Client[] }) {
       <div className="space-y-2 md:hidden">
         {filtered.map((c) => (
           <div key={c.id} className="rounded-lg border border-gray-200 bg-white p-3 space-y-1.5">
-            <div className="flex items-center justify-between">
-              <Link href={`/clients/${c.id}`} className="font-medium text-sm text-cobalt underline">{c.name}</Link>
+            <div className="flex min-w-0 items-start justify-between gap-2">
+              <Link href={`/clients/${c.id}`} className="min-w-0 break-words font-medium text-sm text-cobalt underline">{c.name}</Link>
               <span className="text-xs text-gray-500">{c._count.projects} proy.</span>
             </div>
             <div className="text-xs text-gray-400 space-y-0.5">
               {c.contactName && <div>Contacto: {c.contactName}</div>}
-              {c.contactEmail && <div>{c.contactEmail}</div>}
+              {c.contactEmail && <div className="break-all">{c.contactEmail}</div>}
               {c.contactPhone && <div>{c.contactPhone}</div>}
             </div>
             <div className="flex gap-1 pt-1">

@@ -25,14 +25,14 @@ export default async function UsersPage() {
     </Card>
     <div className="grid gap-4">
       {users.map((user) => <Card key={user.id}>
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div><h2 className="font-semibold">{user.name}</h2><p className="text-sm text-gray-500">{user.email} · {user.role === "ADMIN" ? "Administrador" : "Colaborador"}</p><p className="mt-1 text-xs font-medium text-gray-500">{user.isActive ? "Activo" : "Inactivo / pendiente de activación"}</p></div>
-          <div className="flex flex-wrap gap-2">
+        <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0"><h2 className="break-words font-semibold">{user.name}</h2><p className="break-words text-sm text-gray-500">{user.email} · {user.role === "ADMIN" ? "Administrador" : "Colaborador"}</p><p className="mt-1 text-xs font-medium text-gray-500">{user.isActive ? "Activo" : "Inactivo / pendiente de activación"}</p></div>
+          <div className="flex shrink-0 flex-wrap gap-2">
             {user.isActive ? <form action={toggleUser}><input type="hidden" name="id" value={user.id} /><input type="hidden" name="active" value="true" /><Button variant="secondary" type="submit">Desactivar</Button></form> : null}
           </div>
         </div>
         {!user.isActive ? <ActivationLinkControl userId={user.id} userName={user.name} /> : null}
-        <details className="mt-4"><summary className="cursor-pointer text-sm font-medium text-brand">Editar datos de cuenta</summary><form action={saveUser} className="mt-3 grid gap-3 md:grid-cols-4"><input type="hidden" name="id" value={user.id} /><input name="name" required defaultValue={user.name} aria-label={`Nombre de ${user.name}`} className="h-10 rounded-lg border border-gray-200 px-3 text-sm" /><input name="email" required type="email" defaultValue={user.email} aria-label={`Correo de ${user.name}`} className="h-10 rounded-lg border border-gray-200 px-3 text-sm" /><select name="role" defaultValue={user.role} aria-label={`Rol de ${user.name}`} className="h-10 rounded-lg border border-gray-200 px-3 text-sm"><option value="COLLABORATOR">Colaborador</option><option value="ADMIN">Administrador</option></select><Button type="submit">Guardar cambios</Button></form></details>
+        <details className="mt-4"><summary className="cursor-pointer text-sm font-medium text-brand">Editar datos de cuenta</summary><form action={saveUser} className="mt-3 grid min-w-0 gap-3 md:grid-cols-4"><input type="hidden" name="id" value={user.id} /><input name="name" required defaultValue={user.name} aria-label={`Nombre de ${user.name}`} className="h-10 min-w-0 w-full rounded-lg border border-gray-200 px-3 text-sm" /><input name="email" required type="email" defaultValue={user.email} aria-label={`Correo de ${user.name}`} className="h-10 min-w-0 w-full rounded-lg border border-gray-200 px-3 text-sm" /><select name="role" defaultValue={user.role} aria-label={`Rol de ${user.name}`} className="h-10 min-w-0 w-full rounded-lg border border-gray-200 px-3 text-sm"><option value="COLLABORATOR">Colaborador</option><option value="ADMIN">Administrador</option></select><Button type="submit" className="w-full md:w-auto">Guardar cambios</Button></form></details>
       </Card>)}
     </div>
   </div>;

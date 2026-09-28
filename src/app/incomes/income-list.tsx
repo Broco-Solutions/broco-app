@@ -227,7 +227,7 @@ export function IncomeList({ initialIncomes, projects, clients, incomeTypes }: {
             <SearchableSelect value={fClient} onChange={(v) => { setFClient(v); setFProject(""); }} options={clients} placeholder="Cliente" className="w-36 text-xs" />
             <SearchableSelect value={fProject} onChange={(v) => setFProject(v)} options={projects.filter(p => !fClient || p.clientId === fClient)} placeholder="Proyecto" className="w-36 text-xs" disabled={!fClient} />
             <Input type="text" value={search} onChange={(e) => setSearch(e.target.value)} className="w-36 text-xs" placeholder="Buscar concepto…" />
-            <div className="flex items-center gap-1">
+            <div className="flex flex-wrap items-center gap-1">
               <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-32 text-xs h-8" placeholder="Desde" />
               <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-32 text-xs h-8" placeholder="Hasta" />
               {(dateFrom || dateTo) && <Button variant="ghost" className="text-xs" onClick={clearRange}>Limpiar fechas</Button>}
@@ -286,8 +286,8 @@ export function IncomeList({ initialIncomes, projects, clients, incomeTypes }: {
       <div className="space-y-2 md:hidden">
         {filtered.map(inc => (
           <div key={inc.id} className="rounded-lg border border-gray-200 bg-white p-3 space-y-1.5">
-            <div className="flex items-center justify-between">
-              <span className="font-medium text-sm">{inc.concept}</span>
+            <div className="flex min-w-0 items-start justify-between gap-2">
+              <span className="min-w-0 break-words font-medium text-sm">{inc.concept}</span>
               <Badge tone={statusTone(inc.status, inc.dueDate)}>{statusLabel(inc.status, inc.dueDate)}</Badge>
             </div>
             <div className="flex justify-between text-sm">

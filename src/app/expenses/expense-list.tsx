@@ -250,7 +250,7 @@ export function ExpenseList({ initial, categories: cats, projects: projs, client
           <SearchableSelect value={fCat} onChange={(v) => setFCat(v)} options={categories.map(c => ({ id: c.id, name: c.name }))} placeholder="Categoria" className="w-36 text-xs" />
           <SearchableSelect value={fProj} onChange={(v) => setFProj(v)} options={projs} placeholder="Proyecto" className="w-36 text-xs" />
           <Input type="text" value={search} onChange={(e) => setSearch(e.target.value)} className="w-36 text-xs" placeholder="Buscar concepto…" />
-          <div className="flex items-center gap-1">
+          <div className="flex flex-wrap items-center gap-1">
             <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-32 text-xs h-8" placeholder="Desde" />
             <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-32 text-xs h-8" placeholder="Hasta" />
             {(dateFrom || dateTo) && <Button variant="ghost" className="text-xs" onClick={clearRange}>Limpiar fechas</Button>}
@@ -309,8 +309,8 @@ export function ExpenseList({ initial, categories: cats, projects: projs, client
       <div className="space-y-2 md:hidden">
         {filtered.map(e => (
           <div key={e.id} className="rounded-lg border border-gray-200 bg-white p-3 space-y-1.5">
-            <div className="flex items-center justify-between">
-              <span className="font-medium text-sm">{e.concept}</span>
+            <div className="flex min-w-0 items-start justify-between gap-2">
+              <span className="min-w-0 break-words font-medium text-sm">{e.concept}</span>
               <Badge tone={formatExpenseStatus(e.status, e.dueDate) === "Pagado" ? "success" : formatExpenseStatus(e.status, e.dueDate) === "Vencido" ? "danger" : "warning"}>{formatExpenseStatus(e.status, e.dueDate)}</Badge>
             </div>
             <div className="flex justify-between text-sm">

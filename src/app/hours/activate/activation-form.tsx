@@ -31,9 +31,9 @@ export function ActivationForm({ token, accountName, accountEmail }: { token: st
       <h1 className="font-display text-[1.75rem] font-semibold leading-[1.1] tracking-[-0.02em] text-ink sm:text-[1.9rem]">Activá tu cuenta</h1>
       <p className="text-sm leading-6 text-slate-500">Creá tu contraseña para empezar a usar Broco App.</p>
     </div>
-    <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-      <p className="text-sm font-semibold text-ink">{accountName}</p>
-      <p className="mt-0.5 text-xs text-slate-500">{accountEmail}</p>
+    <div className="mt-5 min-w-0 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+      <p className="break-words text-sm font-semibold text-ink">{accountName}</p>
+      <p className="mt-0.5 break-words text-xs text-slate-500">{accountEmail}</p>
     </div>
     <div className="space-y-2.5 pt-5">
       <label htmlFor="activation-password" className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">NUEVA CONTRASEÑA</label>

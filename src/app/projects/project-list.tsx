@@ -131,9 +131,9 @@ export function ProjectList({ initialProjects, clients }: { initialProjects: Pro
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
-          <Select value={filter} onChange={(e) => setFilter(e.target.value as typeof filter)} className="w-40">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex w-full min-w-0 flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+          <Select value={filter} onChange={(e) => setFilter(e.target.value as typeof filter)} className="w-full sm:w-40">
             <option value="all">Todos</option>
             <option value="active">Activos</option>
             <option value="inactive">Inactivos</option>
@@ -142,10 +142,10 @@ export function ProjectList({ initialProjects, clients }: { initialProjects: Pro
             placeholder="Buscar proyecto…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="max-w-xs"
+            className="w-full min-w-0 sm:max-w-xs"
           />
         </div>
-        <Button onClick={() => { setEditProject(null); setShowForm(true); }}>Nuevo proyecto</Button>
+        <Button className="w-full sm:w-auto" onClick={() => { setEditProject(null); setShowForm(true); }}>Nuevo proyecto</Button>
       </div>
 
       {/* Totalizador */}
@@ -191,11 +191,11 @@ export function ProjectList({ initialProjects, clients }: { initialProjects: Pro
       <div className="space-y-2 md:hidden">
         {searched.map((p) => (
           <div key={p.id} className="rounded-lg border border-gray-200 bg-white p-3 space-y-1.5">
-            <div className="flex items-center justify-between">
-              <Link href={`/projects/${p.id}`} className="font-medium text-sm text-cobalt underline">{p.name}</Link>
+            <div className="flex min-w-0 items-start justify-between gap-2">
+              <Link href={`/projects/${p.id}`} className="min-w-0 break-words font-medium text-sm text-cobalt underline">{p.name}</Link>
               <Badge tone={p.isActive ? "success" : "neutral"}>{p.isActive ? "Activo" : "Inactivo"}</Badge>
             </div>
-            <div className="text-xs text-gray-500">{p.client.name}</div>
+            <div className="break-words text-xs text-gray-500">{p.client.name}</div>
             {fmtDate(p.startDate) !== "—" && <div className="text-xs text-gray-400">Inicio: {fmtDate(p.startDate)}{p.endDate ? ` · Fin: ${fmtDate(p.endDate)}` : ""}</div>}
             <div className="text-xs font-medium tabular-nums">{fmtAmount(p.oneTimeCurrency, p.oneTimeAmountUsd)}</div>
             <div className="flex gap-1 pt-1">

@@ -50,7 +50,7 @@ export function Header({ role }: { role?: "ADMIN" | "COLLABORATOR" }) {
 
       {mobileMenuOpen && (
         <div className="fixed inset-0 z-40 lg:hidden">
-          <button className="absolute inset-0 bg-black/50" onClick={() => setMobileMenuOpen(false)} />
+          <button aria-label="Cerrar menú" className="absolute inset-0 bg-black/50" onClick={() => setMobileMenuOpen(false)} />
           <div className="absolute inset-x-3 top-14 max-h-[80vh] overflow-y-auto rounded-xl border border-gray-200 bg-white p-4 shadow-xl">
             <nav className="space-y-1">
               {navigationItems.filter((item) => role === "ADMIN" || item.href === "/hours").map((item) => {
