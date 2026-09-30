@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { ClientProjectsSection } from "./client-projects-section";
+import { ClientDetailActions } from "./client-detail-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +44,17 @@ export default async function ClientDetailPage({
             {safe._count.projects} proyecto{safe._count.projects !== 1 ? "s" : ""}
           </Badge>
         }
+      />
+
+      <ClientDetailActions
+        client={{
+          id: safe.id,
+          name: safe.name,
+          contactName: safe.contactName,
+          contactEmail: safe.contactEmail,
+          contactPhone: safe.contactPhone,
+          notes: safe.notes,
+        }}
       />
 
       <Card>

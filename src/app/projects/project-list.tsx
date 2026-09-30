@@ -3,12 +3,13 @@
 import { useEffect, useState } from "react";
 import { formatUsd, formatDate } from "@/lib/utils";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { DataTable } from "@/components/ui/data-table";
+import { DataTable, DataTableActions } from "@/components/ui/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Select } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { ConfirmActionModal } from "@/components/ui/confirm-action-modal";
 import { ProjectFormModal } from "./project-form-modal";
 import { saveProject, removeProject, toggleProjectActive } from "./actions";
@@ -49,8 +50,10 @@ function toISODate(d: string | Date | null): string | null {
 
 export function ProjectList({ initialProjects, clients }: { initialProjects: Project[]; clients: { id: string; name: string }[] }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [projects, setProjects] = useState<Project[]>(initialProjects);
   const [filter, setFilter] = useState<"all" | "active" | "inactive">("active");
+  const [clientFilter, setClientFilter] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editProject, setEditProject] = useState<Project | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Project | null>(null);
@@ -59,6 +62,17 @@ export function ProjectList({ initialProjects, clients }: { initialProjects: Pro
   const [actionError, setActionError] = useState<string | null>(null);
 
   useEffect(() => setProjects(initialProjects), [initialProjects]);
+  useEffect(() => {
+    setClientFilter(searchParams.get("client") ?? "");
+  }, [searchParams]);
+
+  const updateClientFilter = (value: string) => {
+    setClientFilter(value);
+    const params = new URLSearchParams(searchParams.toString());
+    if (value) params.set("client", value);
+    else params.delete("client");
+    router.replace(`/projects${params.toString() ? `?${params.toString()}` : ""}`, { scroll: false });
+  };
 
   const handleSave = async (data: Record<string, unknown>) => {
     const fd = new FormData();
@@ -117,8 +131,9 @@ export function ProjectList({ initialProjects, clients }: { initialProjects: Pro
   };
 
   const filtered = projects.filter((p) => {
-    if (filter === "active") return p.isActive;
-    if (filter === "inactive") return !p.isActive;
+    if (filter === "active" && !p.isActive) return false;
+    if (filter === "inactive" && p.isActive) return false;
+    if (clientFilter && p.client.id !== clientFilter) return false;
     return true;
   });
 
@@ -144,6 +159,10 @@ export function ProjectList({ initialProjects, clients }: { initialProjects: Pro
             onChange={(e) => setSearch(e.target.value)}
             className="w-full min-w-0 sm:max-w-xs"
           />
+          <div className="flex items-center gap-1">
+            <SearchableSelect value={clientFilter} onChange={updateClientFilter} options={clients} placeholder="Cliente" className="w-full sm:w-44" />
+            {clientFilter ? <Button type="button" variant="ghost" className="shrink-0 px-2 text-xs" onClick={() => updateClientFilter("")}>Limpiar</Button> : null}
+          </div>
         </div>
         <Button className="w-full sm:w-auto" onClick={() => { setEditProject(null); setShowForm(true); }}>Nuevo proyecto</Button>
       </div>
@@ -160,7 +179,7 @@ export function ProjectList({ initialProjects, clients }: { initialProjects: Pro
       {/* DESKTOP TABLE */}
       <div className="hidden md:block">
       <DataTable tableClassName="table-fixed" headers={["Proyecto", "Cliente", "Estado", "Inicio", "Fin", "Importe acordado", "Importe mensual", "Acciones"]}
-        colGroup={<colgroup><col style={{width:"22%"}} /><col style={{width:"14%"}} /><col style={{width:"7%"}} /><col style={{width:"8%"}} /><col style={{width:"8%"}} /><col style={{width:"12%"}} /><col style={{width:"12%"}} /><col style={{width:"17%"}} /></colgroup>}
+        colGroup={<colgroup><col style={{width:"19%"}} /><col style={{width:"17%"}} /><col style={{width:"8%"}} /><col style={{width:"8%"}} /><col style={{width:"8%"}} /><col style={{width:"12%"}} /><col style={{width:"11%"}} /><col style={{width:"17%"}} /></colgroup>}
       >
         {searched.length === 0 ? (
           <tr><td colSpan={8} className="px-4 py-8 text-center text-sm text-gray-500">
@@ -168,19 +187,21 @@ export function ProjectList({ initialProjects, clients }: { initialProjects: Pro
           </td></tr>
         ) : searched.map((p) => (
           <tr key={p.id}>
-            <td className="px-4 py-2.5 align-middle"><div className="line-clamp-2 break-words" title={p.name}><Link href={`/projects/${p.id}`} className="text-cobalt underline">{p.name}</Link></div></td>
-            <td className="px-4 py-2.5 align-middle"><div className="line-clamp-2 break-words" title={p.client.name}>{p.client.name}</div></td>
-            <td className="px-4 py-2.5"><Badge tone={p.isActive ? "success" : "neutral"}>{p.isActive ? "Activo" : "Inactivo"}</Badge></td>
-            <td className="px-4 py-2.5 whitespace-nowrap text-sm">{fmtDate(p.startDate)}</td>
-            <td className="px-4 py-2.5 whitespace-nowrap text-sm">{fmtDate(p.endDate)}</td>
-            <td className="px-4 py-2.5 text-xs tabular-nums">{fmtAmount(p.oneTimeCurrency, p.oneTimeAmountUsd)}</td>
-            <td className="px-4 py-2.5 text-xs tabular-nums">{fmtAmount(p.monthlyRecurringCurrency, p.monthlyRecurringAmountUsd)}</td>
-            <td className="px-4 py-2.5 space-x-1 whitespace-nowrap">
-              <Button variant="secondary" onClick={() => { setEditProject(p); setShowForm(true); }}>Editar</Button>
-              <Button variant="secondary" onClick={() => handleToggle(p)}>{p.isActive ? "Inactivar" : "Activar"}</Button>
+            <td className="px-3 py-2.5 align-middle"><div className="line-clamp-2 break-words" title={p.name}><Link href={`/projects/${p.id}`} className="text-cobalt underline">{p.name}</Link></div></td>
+            <td className="px-3 py-2.5 align-middle"><div className="line-clamp-2 break-words" title={p.client.name}><Link href={`/clients/${p.client.id}`} className="text-cobalt underline">{p.client.name}</Link></div></td>
+            <td className="px-3 py-2.5"><Badge tone={p.isActive ? "success" : "neutral"}>{p.isActive ? "Activo" : "Inactivo"}</Badge></td>
+            <td className="px-3 py-2.5 whitespace-nowrap text-sm tabular-nums">{fmtDate(p.startDate)}</td>
+            <td className="px-3 py-2.5 whitespace-nowrap text-sm tabular-nums">{fmtDate(p.endDate)}</td>
+            <td className="px-3 py-2.5 text-xs tabular-nums text-right">{fmtAmount(p.oneTimeCurrency, p.oneTimeAmountUsd)}</td>
+            <td className="px-3 py-2.5 text-xs tabular-nums text-right">{fmtAmount(p.monthlyRecurringCurrency, p.monthlyRecurringAmountUsd)}</td>
+            <td className="px-3 py-2.5">
+              <DataTableActions>
+              <Button variant="secondary" className="text-xs" onClick={() => { setEditProject(p); setShowForm(true); }}>Editar</Button>
+              <Button variant="secondary" className="text-xs" onClick={() => handleToggle(p)}>{p.isActive ? "Inactivar" : "Activar"}</Button>
               {p._count.incomes === 0 && p._count.expenses === 0 && (
-                <Button variant="secondary" className="text-brick" onClick={() => { setDeleteTarget(p); setDelError(null); }}>Eliminar</Button>
+                <Button variant="secondary" className="text-xs text-brick" onClick={() => { setDeleteTarget(p); setDelError(null); }}>Eliminar</Button>
               )}
+              </DataTableActions>
             </td>
           </tr>
         ))}
@@ -195,7 +216,7 @@ export function ProjectList({ initialProjects, clients }: { initialProjects: Pro
               <Link href={`/projects/${p.id}`} className="min-w-0 break-words font-medium text-sm text-cobalt underline">{p.name}</Link>
               <Badge tone={p.isActive ? "success" : "neutral"}>{p.isActive ? "Activo" : "Inactivo"}</Badge>
             </div>
-            <div className="break-words text-xs text-gray-500">{p.client.name}</div>
+            <div className="break-words text-xs text-gray-500"><Link href={`/clients/${p.client.id}`} className="text-cobalt underline">{p.client.name}</Link></div>
             {fmtDate(p.startDate) !== "—" && <div className="text-xs text-gray-400">Inicio: {fmtDate(p.startDate)}{p.endDate ? ` · Fin: ${fmtDate(p.endDate)}` : ""}</div>}
             <div className="text-xs font-medium tabular-nums">{fmtAmount(p.oneTimeCurrency, p.oneTimeAmountUsd)}</div>
             <div className="flex gap-1 pt-1">

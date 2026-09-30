@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { DataTable } from "@/components/ui/data-table";
+import { DataTable, DataTableActions } from "@/components/ui/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Select } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
@@ -56,25 +56,41 @@ export function IncomeList({ initialIncomes, projects, clients, incomeTypes }: {
   const [bulkError, setBulkError] = useState<string | null>(null);
   const router = useRouter();
   const sp = useSearchParams();
+  const queryString = sp.toString();
+
+  const updateQuery = useCallback((updates: Record<string, string | null | undefined>) => {
+    const params = new URLSearchParams(queryString);
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value) params.set(key, value);
+      else params.delete(key);
+    });
+    router.replace(`/incomes${params.toString() ? `?${params.toString()}` : ""}`, { scroll: false });
+  }, [queryString, router]);
 
   const didOpen = useRef(false);
-  useEffect(() => { if (!didOpen.current && sp.get("new") === "1") { didOpen.current = true; setShowForm(true); router.replace("/incomes"); } }, [sp, router]);
+  useEffect(() => {
+    const params = new URLSearchParams(queryString);
+    if (!didOpen.current && params.get("new") === "1") {
+      didOpen.current = true;
+      setShowForm(true);
+      updateQuery({ new: null });
+    }
+  }, [queryString, updateQuery]);
 
   // Sync filters from query params
-  const didSync = useRef(false);
   useEffect(() => {
-    if (didSync.current) return;
-    const s = sp.get("status"); if (s === "PAID" || s === "PENDING") setFilter(s); else if (s === "OVERDUE") setFilter("OVERDUE");
-    const f = sp.get("from"), t = sp.get("to");
-    if (f && t) { setDateFrom(f); setDateTo(t); }
-    const ty = sp.get("typeFilter"); if (ty) setTypeFilter(ty);
-    const cl = sp.get("client"); if (cl) setFClient(cl);
-    const pj = sp.get("project"); if (pj) setFProject(pj);
-    didSync.current = true;
-  }, [sp]);
+    const params = new URLSearchParams(queryString);
+    const s = params.get("status");
+    setFilter(s === "all" || s === "PAID" || s === "PENDING" || s === "OVERDUE" ? s : "PAID");
+    const f = params.get("from"), t = params.get("to");
+    setDateFrom(f ?? ""); setDateTo(t ?? "");
+    setTypeFilter(params.get("typeFilter") ?? "");
+    setFClient(params.get("client") ?? "");
+    setFProject(params.get("project") ?? "");
+  }, [queryString]);
 
-  const clearRange = () => { setDateFrom(""); setDateTo(""); router.replace("/incomes"); };
-  const clearFilters = () => { setFilter("PAID"); setTypeFilter(""); setFClient(""); setFProject(""); setSearch(""); clearRange(); };
+  const clearRange = () => { setDateFrom(""); setDateTo(""); updateQuery({ from: null, to: null }); };
+  const clearFilters = () => { setFilter("PAID"); setTypeFilter(""); setFClient(""); setFProject(""); setSearch(""); updateQuery({ status: null, typeFilter: null, client: null, project: null, from: null, to: null }); };
 
   const reload = () => { setTimeout(() => { router.refresh(); }, 300); };
   const mkFd = (data: Record<string, unknown>, id?: string) => {
@@ -218,14 +234,14 @@ export function IncomeList({ initialIncomes, projects, clients, incomeTypes }: {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex gap-2 flex-wrap">
-            <Select value={filter} onChange={(e) => setFilter(e.target.value)} className="w-28 text-xs">
+            <Select value={filter} onChange={(e) => { setFilter(e.target.value); updateQuery({ status: e.target.value }); }} className="w-28 text-xs">
               <option value="all">Todos</option><option value="PAID">Cobrados</option><option value="PENDING">Pendientes</option><option value="OVERDUE">Vencidos</option>
             </Select>
-            <Select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="w-36 text-xs">
+            <Select value={typeFilter} onChange={(e) => { setTypeFilter(e.target.value); updateQuery({ typeFilter: e.target.value || null }); }} className="w-36 text-xs">
               <option value="">Tipos</option>{incomeTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
             </Select>
-            <SearchableSelect value={fClient} onChange={(v) => { setFClient(v); setFProject(""); }} options={clients} placeholder="Cliente" className="w-36 text-xs" />
-            <SearchableSelect value={fProject} onChange={(v) => setFProject(v)} options={projects.filter(p => !fClient || p.clientId === fClient)} placeholder="Proyecto" className="w-36 text-xs" disabled={!fClient} />
+            <SearchableSelect value={fClient} onChange={(v) => { setFClient(v); setFProject(""); updateQuery({ client: v || null, project: null }); }} options={clients} placeholder="Cliente" className="w-36 text-xs" />
+            <SearchableSelect value={fProject} onChange={(v) => { setFProject(v); updateQuery({ project: v || null }); }} options={projects.filter(p => !fClient || p.clientId === fClient)} placeholder="Proyecto" className="w-36 text-xs" />
             <Input type="text" value={search} onChange={(e) => setSearch(e.target.value)} className="w-36 text-xs" placeholder="Buscar concepto…" />
             <div className="flex flex-wrap items-center gap-1">
               <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-32 text-xs h-8" placeholder="Desde" />
@@ -256,26 +272,28 @@ export function IncomeList({ initialIncomes, projects, clients, incomeTypes }: {
       <div className="hidden md:block">
         <DataTable tableClassName="table-fixed"
           headers={[<input key="cb" type="checkbox" checked={allSelected} onChange={toggleAll} className="h-3.5 w-3.5" />,"Concepto","Cliente","Proyecto","Tipo","Estado","Fecha","USD","ARS","Acciones"]}
-          colGroup={<colgroup><col style={{width:"3%"}} /><col style={{width:"16%"}} /><col style={{width:"11%"}} /><col style={{width:"11%"}} /><col style={{width:"8%"}} /><col style={{width:"8%"}} /><col style={{width:"9%"}} /><col style={{width:"10%"}} /><col style={{width:"12%"}} /><col style={{width:"12%"}} /></colgroup>}
-          footer={<tr className="bg-gray-50 font-semibold"><td className="px-4 py-2.5 text-xs text-gray-500">Total filtrado · {filtered.length} mov.</td><td /><td /><td /><td /><td /><td className="px-4 py-2.5 text-sm text-right tabular-nums">{formatUsd(filteredTotal)}</td><td /><td /></tr>}
+          colGroup={<colgroup><col style={{width:"4%"}} /><col style={{width:"14%"}} /><col style={{width:"11%"}} /><col style={{width:"11%"}} /><col style={{width:"8%"}} /><col style={{width:"9%"}} /><col style={{width:"9%"}} /><col style={{width:"10%"}} /><col style={{width:"11%"}} /><col style={{width:"13%"}} /></colgroup>}
+          footer={<tr className="bg-gray-50 font-semibold"><td className="px-3 py-2.5 text-xs text-gray-500">Total filtrado · {filtered.length} mov.</td><td /><td /><td /><td /><td /><td className="px-3 py-2.5 text-sm text-right tabular-nums">{formatUsd(filteredTotal)}</td><td /><td /></tr>}
         >
           {filtered.length === 0 ? <tr><td colSpan={10} className="px-4 py-8 text-center text-sm text-gray-500">
             {search || dateFrom || dateTo || typeFilter || fClient || fProject || filter !== "all" ? "No hay ingresos para los filtros actuales." : "Todavía no hay ingresos."}
           </td></tr> : filtered.map(inc => (
             <tr key={inc.id}>
-              <td className="px-2 py-2.5"><input type="checkbox" checked={selected.has(inc.id)} onChange={() => toggleSelect(inc.id)} className="h-3.5 w-3.5" /></td>
-              <td className="px-4 py-2.5 text-sm align-middle"><div className="line-clamp-2 break-words" title={inc.concept}>{inc.concept}</div></td>
-              <td className="px-4 py-2.5 text-sm align-middle"><div className="line-clamp-2 break-words" title={inc.client?.name ?? ""}>{inc.client?.name ?? "—"}</div></td>
-              <td className="px-4 py-2.5 text-sm align-middle"><div className="line-clamp-2 break-words" title={inc.project?.name ?? ""}>{inc.project?.name ?? "—"}</div></td>
-              <td className="px-4 py-2.5 text-sm whitespace-nowrap">{inc.type?.name ?? "—"}</td>
-              <td className="px-4 py-2.5"><Badge tone={statusTone(inc.status, inc.dueDate)}>{statusLabel(inc.status, inc.dueDate)}</Badge></td>
-              <td className="px-4 py-2.5 text-sm tabular-nums whitespace-nowrap">{inc.status === "PAID" ? formatDate(inc.effectiveDate) : formatDate(inc.dueDate)}</td>
-              <td className="px-4 py-2.5 text-sm text-right tabular-nums">{formatUsd(fmt(inc.amountUsd))}</td>
-              <td className="px-4 py-2.5 text-sm text-right tabular-nums">{inc.amountArs ? `${formatArs(fmt(inc.amountArs))} · TC ${fmt(inc.exchangeRate)}` : "—"}</td>
-              <td className="px-4 py-2.5 space-x-1 whitespace-nowrap">
+              <td className="px-3 py-2.5"><input type="checkbox" checked={selected.has(inc.id)} onChange={() => toggleSelect(inc.id)} className="h-3.5 w-3.5" /></td>
+              <td className="px-3 py-2.5 text-sm align-middle"><div className="line-clamp-2 break-words" title={inc.concept}>{inc.concept}</div></td>
+              <td className="px-3 py-2.5 text-sm align-middle"><div className="truncate" title={inc.client?.name ?? ""}>{inc.client?.name ?? "—"}</div></td>
+              <td className="px-3 py-2.5 text-sm align-middle"><div className="truncate" title={inc.project?.name ?? ""}>{inc.project?.name ?? "—"}</div></td>
+              <td className="px-3 py-2.5 text-sm whitespace-nowrap">{inc.type?.name ?? "—"}</td>
+              <td className="px-3 py-2.5"><Badge tone={statusTone(inc.status, inc.dueDate)}>{statusLabel(inc.status, inc.dueDate)}</Badge></td>
+              <td className="px-3 py-2.5 text-sm tabular-nums whitespace-nowrap">{inc.status === "PAID" ? formatDate(inc.effectiveDate) : formatDate(inc.dueDate)}</td>
+              <td className="px-3 py-2.5 text-sm text-right tabular-nums">{formatUsd(fmt(inc.amountUsd))}</td>
+              <td className="px-3 py-2.5 text-sm text-right tabular-nums"><span className="truncate" title={inc.amountArs ? `${formatArs(fmt(inc.amountArs))} · TC ${fmt(inc.exchangeRate)}` : "—"}>{inc.amountArs ? `${formatArs(fmt(inc.amountArs))} · TC ${fmt(inc.exchangeRate)}` : "—"}</span></td>
+              <td className="px-3 py-2.5">
+                <DataTableActions>
                 {inc.status === "PENDING" && <Button variant="secondary" className="text-xs" onClick={() => setPayTarget(inc)}>Cobrar</Button>}
                 <Button variant="secondary" className="text-xs" onClick={() => { setEditing(inc); setShowForm(true); }}>Editar</Button>
                 <Button variant="secondary" className="text-xs text-brick" onClick={() => { setDeleteTarget(inc); setDelError(null); }}>Elim.</Button>
+                </DataTableActions>
               </td>
             </tr>
           ))}

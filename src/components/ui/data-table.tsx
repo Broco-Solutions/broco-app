@@ -1,13 +1,18 @@
-import { Children } from "react";
 import { cn } from "@/lib/utils";
+
+export function DataTableActions({ children, className }: { children: React.ReactNode; className?: string }) {
+  return (
+    <div className={cn("flex flex-wrap items-center justify-end gap-1.5", className)}>
+      {children}
+    </div>
+  );
+}
 
 export function DataTable({
   headers,
   children,
   className,
   footer,
-  scrollAfter = 10,
-  maxHeightClassName = "max-h-[34rem]",
   tableClassName,
   colGroup,
 }: {
@@ -15,27 +20,22 @@ export function DataTable({
   children: React.ReactNode;
   className?: string;
   footer?: React.ReactNode;
-  scrollAfter?: number;
-  maxHeightClassName?: string;
   tableClassName?: string;
   colGroup?: React.ReactNode;
 }) {
-  const rowCount = Children.toArray(children).length;
-  const shouldScroll = rowCount > scrollAfter;
-
   return (
-    <div className={cn("overflow-hidden rounded-[1.35rem] border border-black/10", className)}>
-      <div className={cn("overflow-x-auto overscroll-x-contain", shouldScroll && `overflow-y-auto ${maxHeightClassName}`)}>
-        <table className={cn("w-full divide-y divide-black/10 text-left text-sm", "table-auto", tableClassName)}>
+    <div className={cn("w-full overflow-hidden rounded-lg border border-black/10", className)}>
+      <div className="overflow-x-auto overscroll-x-contain">
+        <table className={cn("w-full divide-y divide-black/10 text-left text-sm", tableClassName)}>
           {colGroup}
           <thead className="bg-ink text-paper">
             <tr>
               {headers.map((header, idx) => (
                 <th
                   key={typeof header === "string" ? header : `h-${idx}`}
+                  scope="col"
                   className={cn(
-                    "px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.18em]",
-                    shouldScroll && "sticky top-0 z-20 bg-ink shadow-[0_1px_0_rgba(255,255,255,0.05)]",
+                    "px-3 py-2.5 text-[11px] font-semibold uppercase tracking-[0.16em]",
                   )}
                 >
                   {header}

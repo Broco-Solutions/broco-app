@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { DataTable } from "@/components/ui/data-table";
+import { DataTable, DataTableActions } from "@/components/ui/data-table";
 import { ConfirmActionModal } from "@/components/ui/confirm-action-modal";
 import { ClientFormModal } from "@/components/screens/client-form-modal";
 import { saveClient, removeClient } from "./actions";
@@ -87,7 +87,7 @@ export function ClientList({ clients: initial }: { clients: Client[] }) {
       {/* DESKTOP TABLE */}
       <div className="hidden md:block">
       <DataTable tableClassName="table-fixed" headers={["Nombre", "Contacto", "Email", "Telefono", "Proyectos", "Acciones"]}
-        colGroup={<colgroup><col style={{width:"28%"}} /><col style={{width:"12%"}} /><col style={{width:"14%"}} /><col style={{width:"10%"}} /><col style={{width:"8%"}} /><col style={{width:"28%"}} /></colgroup>}
+        colGroup={<colgroup><col style={{width:"24%"}} /><col style={{width:"15%"}} /><col style={{width:"21%"}} /><col style={{width:"13%"}} /><col style={{width:"9%"}} /><col style={{width:"18%"}} /></colgroup>}
       >
         {filtered.length === 0 ? (
           <tr><td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-500">
@@ -95,24 +95,26 @@ export function ClientList({ clients: initial }: { clients: Client[] }) {
           </td></tr>
         ) : filtered.map((c) => (
           <tr key={c.id}>
-            <td className="px-4 py-2.5 align-middle">
+            <td className="px-3 py-2.5 align-middle">
               <div className="line-clamp-2 break-words" title={c.name}>
               <Link href={`/clients/${c.id}`} className="text-cobalt underline">
                 {c.name}
               </Link>
               </div>
             </td>
-            <td className="px-4 py-2.5 align-middle"><div className="line-clamp-2 break-words" title={c.contactName ?? ""}>{c.contactName ?? "—"}</div></td>
-            <td className="px-4 py-2.5 text-sm break-all" title={c.contactEmail ?? ""}>{c.contactEmail ?? "—"}</td>
-            <td className="px-4 py-2.5 whitespace-nowrap text-sm">{c.contactPhone ?? "—"}</td>
-            <td className="px-4 py-2.5 text-center text-sm">{c._count.projects}</td>
-            <td className="px-4 py-2.5 space-x-2 whitespace-nowrap">
+            <td className="px-3 py-2.5 align-middle"><div className="line-clamp-2 break-words" title={c.contactName ?? ""}>{c.contactName ?? "—"}</div></td>
+            <td className="px-3 py-2.5 text-sm"><div className="truncate" title={c.contactEmail ?? ""}>{c.contactEmail ?? "—"}</div></td>
+            <td className="px-3 py-2.5 whitespace-nowrap text-sm">{c.contactPhone ?? "—"}</td>
+            <td className="px-3 py-2.5 text-center text-sm tabular-nums">{c._count.projects}</td>
+            <td className="px-3 py-2.5">
+              <DataTableActions>
               <Button variant="secondary" className="text-xs" onClick={() => { setEditing(c); setShowForm(true); }}>
                 Editar
               </Button>
               <Button variant="secondary" className="text-xs text-brick" onClick={() => setDeleteTarget(c)}>
                 Eliminar
               </Button>
+              </DataTableActions>
             </td>
           </tr>
         ))}

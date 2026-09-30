@@ -102,7 +102,18 @@ export default async function ProjectDetailPage({
       ) : (
         <>
           <div className="flex justify-end">
-            <ProjectDetailEdit project={JSON.parse(JSON.stringify(project))} clients={clients} />
+            <div className="flex flex-wrap justify-end gap-2">
+              <Link href={`/clients/${project.clientId}`} className="inline-flex items-center justify-center rounded-lg border border-gray-200 bg-white px-3.5 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50">
+                Ver cliente
+              </Link>
+              <Link href={`/incomes?project=${project.id}`} className="inline-flex items-center justify-center rounded-lg border border-gray-200 bg-white px-3.5 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50">
+                Ver ingresos
+              </Link>
+              <Link href={`/expenses?project=${project.id}`} className="inline-flex items-center justify-center rounded-lg border border-gray-200 bg-white px-3.5 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50">
+                Ver gastos
+              </Link>
+              <ProjectDetailEdit project={JSON.parse(JSON.stringify(project))} clients={clients} />
+            </div>
           </div>
           <Card>
             <h2 className="font-display text-xl text-ink">Datos del proyecto</h2>
