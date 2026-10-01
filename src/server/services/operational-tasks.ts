@@ -112,7 +112,7 @@ function orderBy(sort: OperationalTaskSort | undefined): Prisma.OperationalTaskO
 
 export async function listOperationalTasks(actor: CurrentUser, filters: OperationalTaskFilters = {}) {
   const search = filters.search?.trim();
-  return prisma.operationalTask.findMany({
+  const tasks = await prisma.operationalTask.findMany({
     where: {
       ...actorScope(actor),
       ...dueWhere(filters.due),
@@ -126,9 +126,34 @@ export async function listOperationalTasks(actor: CurrentUser, filters: Operatio
         { blockedReason: { contains: search, mode: "insensitive" } },
       ] } : {}),
     },
-    select: taskSelect,
+    select: {
+      ...taskSelect,
+      timeEntries: {
+        where: actor.role === "COLLABORATOR" ? { userId: actor.id } : {},
+        orderBy: [{ workDate: "desc" as const }, { createdAt: "desc" as const }],
+        take: 10,
+        select: {
+          id: true, userId: true, workDate: true, minutes: true, description: true,
+          status: true, voidReason: true, updatedAt: true,
+          user: { select: { id: true, name: true } },
+        },
+      },
+    },
     orderBy: orderBy(filters.sort),
   });
+  const ids = tasks.map((task) => task.id);
+  if (ids.length === 0) return [];
+  const totals = await prisma.timeEntry.groupBy({
+    by: ["operationalTaskId"],
+    where: {
+      operationalTaskId: { in: ids },
+      status: "ACTIVE",
+      ...(actor.role === "COLLABORATOR" ? { userId: actor.id } : {}),
+    },
+    _sum: { minutes: true },
+  });
+  const totalByTask = new Map(totals.map((row) => [row.operationalTaskId, row._sum.minutes ?? 0]));
+  return tasks.map((task) => ({ ...task, timeMinutes: totalByTask.get(task.id) ?? 0 }));
 }
 
 export async function getOperationalTask(actor: CurrentUser, id: string) {

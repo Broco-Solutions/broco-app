@@ -221,7 +221,8 @@ export async function inspectHoursAuthMigration(client: SqlClient, schema = HOUR
   for (const [table, columns] of Object.entries(EXPECTED_COLUMNS)) {
     const expectedNames = new Set(columns.map(([name]) => name));
     const actualNames = columnRows.filter((row) => row.table_name === table).map((row) => row.column_name);
-    for (const name of actualNames) if (!expectedNames.has(name)) problems.push(`Columna inesperada ${table}.${name}.`);
+    const allowedExtensions = table === "time_entries" ? new Set(["operational_task_id"]) : new Set<string>();
+    for (const name of actualNames) if (!expectedNames.has(name) && !allowedExtensions.has(name)) problems.push(`Columna inesperada ${table}.${name}.`);
     for (const [name, type, nullable] of columns) {
       const actual = actualColumns.get(`${table}.${name}`);
       if (!actual || !columnTypeMatches(type, actual.type) || actual.nullable !== nullable) {

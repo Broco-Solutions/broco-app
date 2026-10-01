@@ -10,6 +10,7 @@ const entrySchema = z.object({
   userId: z.string().uuid(), projectId: z.string().uuid(), workDate: dateSchema,
   minutes: z.number().int().positive().max(1440), description: z.string().trim().min(1, "La descripción es obligatoria.").max(2000), idempotencyKey: z.string().uuid(),
   referenceUrl: z.string().trim().url("El enlace no es válido.").max(2000).nullable().optional(),
+  operationalTaskId: z.string().uuid().nullable().optional(),
 });
 export type TimeEntryInput = z.infer<typeof entrySchema>;
 
@@ -42,7 +43,7 @@ export async function createTimeEntry(actor: CurrentUser, raw: TimeEntryInput) {
   if (!target?.isActive) throw new Error("La persona está desactivada.");
   const created = await prisma.$transaction(async (tx) => {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`${input.userId}:${input.workDate}`}))`;
-    const existing = await tx.timeEntry.findUnique({ where: { idempotencyKey: input.idempotencyKey }, select: { id: true, userId: true, projectId: true, workDate: true, minutes: true, description: true, referenceUrl: true, status: true, createdAt: true, project: { select: { name: true, client: { select: { name: true } } } } } });
+    const existing = await tx.timeEntry.findUnique({ where: { idempotencyKey: input.idempotencyKey }, select: { id: true, userId: true, projectId: true, operationalTaskId: true, workDate: true, minutes: true, description: true, referenceUrl: true, status: true, createdAt: true, project: { select: { name: true, client: { select: { name: true } } } } } });
     if (existing) {
       if (
         existing.userId !== input.userId ||
@@ -50,24 +51,70 @@ export async function createTimeEntry(actor: CurrentUser, raw: TimeEntryInput) {
         existing.workDate.toISOString().slice(0, 10) !== input.workDate ||
         existing.minutes !== input.minutes ||
         existing.description !== input.description ||
+        (existing.operationalTaskId ?? null) !== (input.operationalTaskId ?? null) ||
         (existing.referenceUrl ?? null) !== (input.referenceUrl ?? null)
       ) throw new Error("La operación ya fue utilizada con otros datos.");
       return { ...existing, projectName: existing.project.name, clientName: existing.project.client.name };
     }
     const project = await assertProjectScope(actor, input.userId, input.projectId, tx);
+    if (input.operationalTaskId) {
+      const task = await tx.operationalTask.findFirst({
+        where: {
+          id: input.operationalTaskId,
+          assigneeId: input.userId,
+          projectId: input.projectId,
+          ...(actor.role === "COLLABORATOR" ? { assigneeId: actor.id } : {}),
+        },
+        select: { id: true },
+      });
+      if (!task) throw new Error("La tarea no corresponde al usuario y proyecto indicados.");
+    }
     const aggregate = await tx.timeEntry.aggregate({ where: { userId: input.userId, workDate: utcDate(input.workDate), status: "ACTIVE" }, _sum: { minutes: true } });
     if ((aggregate._sum.minutes ?? 0) + input.minutes > 1440) throw new Error("El total diario no puede superar 24 horas.");
-    const entry = await tx.timeEntry.create({ data: { userId: input.userId, projectId: input.projectId, workDate: utcDate(input.workDate), minutes: input.minutes, description: input.description, referenceUrl: input.referenceUrl || null, idempotencyKey: input.idempotencyKey, createdById: actor.id }, select: { id: true, userId: true, projectId: true, workDate: true, minutes: true, description: true, referenceUrl: true, status: true, createdAt: true, project: { select: { name: true, client: { select: { name: true } } } } } });
+    const entry = await tx.timeEntry.create({ data: { userId: input.userId, projectId: input.projectId, operationalTaskId: input.operationalTaskId ?? null, workDate: utcDate(input.workDate), minutes: input.minutes, description: input.description, referenceUrl: input.referenceUrl || null, idempotencyKey: input.idempotencyKey, createdById: actor.id }, select: { id: true, userId: true, projectId: true, operationalTaskId: true, workDate: true, minutes: true, description: true, referenceUrl: true, status: true, createdAt: true, project: { select: { name: true, client: { select: { name: true } } } } } });
     await tx.timeEntryAudit.create({ data: { entryId: entry.id, actorId: actor.id, action: "CREATED", afterJson: auditJson(entry) } });
     return { ...entry, projectName: project.name, clientName: project.client.name };
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   return created;
 }
 
-export type HourFilters = { from: string; to: string; clientId?: string; projectId?: string; userId?: string };
+export type HourFilters = { from: string; to: string; clientId?: string; projectId?: string; userId?: string; operationalTaskId?: string };
 export async function listTimeEntries(actor: CurrentUser, filters: HourFilters) {
-  const where = { workDate: { gte: utcDate(filters.from), lte: utcDate(filters.to) }, ...(filters.clientId ? { project: { clientId: filters.clientId } } : {}), ...(filters.projectId ? { projectId: filters.projectId } : {}), ...(actor.role === "ADMIN" && filters.userId ? { userId: filters.userId } : actor.role === "COLLABORATOR" ? { userId: actor.id } : {}) };
-  return prisma.timeEntry.findMany({ where, orderBy: [{ workDate: "desc" }, { createdAt: "desc" }], select: { id: true, userId: true, projectId: true, workDate: true, minutes: true, description: true, referenceUrl: true, status: true, createdAt: true, updatedAt: true, user: { select: { name: true, email: true } }, project: { select: { name: true, client: { select: { id: true, name: true } } } } } });
+  const where = { workDate: { gte: utcDate(filters.from), lte: utcDate(filters.to) }, ...(filters.clientId ? { project: { clientId: filters.clientId } } : {}), ...(filters.projectId ? { projectId: filters.projectId } : {}), ...(filters.operationalTaskId ? { operationalTaskId: filters.operationalTaskId } : {}), ...(actor.role === "ADMIN" && filters.userId ? { userId: filters.userId } : actor.role === "COLLABORATOR" ? { userId: actor.id } : {}) };
+  return prisma.timeEntry.findMany({ where, orderBy: [{ workDate: "desc" }, { createdAt: "desc" }], select: { id: true, userId: true, projectId: true, operationalTaskId: true, workDate: true, minutes: true, description: true, referenceUrl: true, status: true, createdAt: true, updatedAt: true, user: { select: { name: true, email: true } }, project: { select: { name: true, client: { select: { id: true, name: true } } } }, operationalTask: { select: { id: true, title: true } } } });
+}
+
+const operationalTaskTimeSchema = z.object({
+  taskId: z.string().uuid(),
+  workDate: dateSchema,
+  minutes: z.number().int().positive().max(1440),
+  additionalDetail: z.string().trim().max(1600, "El detalle adicional es demasiado largo.").nullable().optional(),
+  idempotencyKey: z.string().uuid(),
+}).strict();
+
+export async function createTimeEntryForOperationalTask(
+  actor: CurrentUser,
+  raw: z.infer<typeof operationalTaskTimeSchema>,
+) {
+  const input = operationalTaskTimeSchema.parse(raw);
+  const task = await prisma.operationalTask.findFirst({
+    where: { id: input.taskId, ...(actor.role === "COLLABORATOR" ? { assigneeId: actor.id } : {}) },
+    select: { id: true, title: true, assigneeId: true, projectId: true },
+  });
+  if (!task) throw new Error("Tarea no encontrada.");
+  if (!task.projectId) throw new Error("La tarea necesita un proyecto para registrar tiempo.");
+  const detail = input.additionalDetail?.trim();
+  const description = detail ? `${task.title} — ${detail}` : task.title;
+  return createTimeEntry(actor, {
+    userId: task.assigneeId,
+    projectId: task.projectId,
+    operationalTaskId: task.id,
+    workDate: input.workDate,
+    minutes: input.minutes,
+    description,
+    referenceUrl: null,
+    idempotencyKey: input.idempotencyKey,
+  });
 }
 
 export async function getHourReport(actor: CurrentUser, filters: HourFilters) {
@@ -87,7 +134,7 @@ export async function getHourReport(actor: CurrentUser, filters: HourFilters) {
 
 export async function voidTimeEntry(actor: CurrentUser, id: string, reason: string) {
   if (!reason.trim()) throw new Error("El motivo es obligatorio.");
-  const entry = await prisma.timeEntry.findUnique({ where: { id }, select: { id: true, userId: true, projectId: true, workDate: true, minutes: true, description: true, referenceUrl: true, status: true, createdById: true, modifiedById: true, voidReason: true, createdAt: true, updatedAt: true, project: { select: { id: true, name: true, client: { select: { id: true, name: true } } } } } });
+  const entry = await prisma.timeEntry.findUnique({ where: { id }, select: { id: true, userId: true, projectId: true, operationalTaskId: true, workDate: true, minutes: true, description: true, referenceUrl: true, status: true, createdById: true, modifiedById: true, voidReason: true, createdAt: true, updatedAt: true, project: { select: { id: true, name: true, client: { select: { id: true, name: true } } } } } });
   if (!entry || entry.status !== "ACTIVE") throw new Error("Registro inexistente o ya anulado.");
   if (actor.role !== "ADMIN" && entry.userId !== actor.id) throw new Error("No autorizado.");
   const updated = await prisma.$transaction(async (tx) => {
@@ -102,7 +149,7 @@ export async function voidTimeEntry(actor: CurrentUser, id: string, reason: stri
 
 export async function updateTimeEntry(actor: CurrentUser, id: string, input: Omit<TimeEntryInput, "userId" | "idempotencyKey">, reason: string, expectedUpdatedAt: string) {
   const parsed = entrySchema.omit({ userId: true, idempotencyKey: true }).parse(input);
-  const current = await prisma.timeEntry.findUnique({ where: { id }, select: { id: true, userId: true, projectId: true, workDate: true, minutes: true, description: true, referenceUrl: true, status: true, createdById: true, modifiedById: true, voidReason: true, createdAt: true, updatedAt: true, project: { select: { id: true, name: true, client: { select: { id: true, name: true } } } } } });
+  const current = await prisma.timeEntry.findUnique({ where: { id }, select: { id: true, userId: true, projectId: true, operationalTaskId: true, workDate: true, minutes: true, description: true, referenceUrl: true, status: true, createdById: true, modifiedById: true, voidReason: true, createdAt: true, updatedAt: true, project: { select: { id: true, name: true, client: { select: { id: true, name: true } } } } } });
   if (!current || current.status !== "ACTIVE") throw new Error("Registro inexistente o anulado.");
   if (actor.role !== "ADMIN" && current.userId !== actor.id) throw new Error("No autorizado.");
   if (current.userId !== actor.id && !reason.trim()) throw new Error("El motivo es obligatorio para corregir un registro ajeno.");
@@ -114,6 +161,9 @@ export async function updateTimeEntry(actor: CurrentUser, id: string, input: Omi
     const keys = [...new Set([current.workDate.toISOString().slice(0, 10), parsed.workDate])].sort();
     for (const key of keys) await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`${current.userId}:${key}`}))`;
     await assertProjectScope(actor, current.userId, parsed.projectId, tx);
+    if (current.operationalTaskId && parsed.projectId !== current.projectId) {
+      throw new Error("No se puede cambiar el proyecto histórico de un tiempo vinculado a una tarea.");
+    }
     const aggregate = await tx.timeEntry.aggregate({ where: { id: { not: id }, userId: current.userId, workDate: utcDate(parsed.workDate), status: "ACTIVE" }, _sum: { minutes: true } });
     if ((aggregate._sum.minutes ?? 0) + parsed.minutes > 1440) throw new Error("El total diario no puede superar 24 horas.");
     const before = auditJson(current);

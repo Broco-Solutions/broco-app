@@ -16,10 +16,10 @@ function week() {
   return { from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) };
 }
 
-export default async function HoursPage({ searchParams }: { searchParams?: { from?: string; to?: string; clientId?: string; projectId?: string; userId?: string; workDate?: string; saved?: string } }) {
+export default async function HoursPage({ searchParams }: { searchParams?: { from?: string; to?: string; clientId?: string; projectId?: string; userId?: string; operationalTaskId?: string; workDate?: string; saved?: string } }) {
   const actor = await requireUser();
   const range = week();
-  const filters = { from: searchParams?.from ?? range.from, to: searchParams?.to ?? range.to, clientId: searchParams?.clientId, projectId: searchParams?.projectId, userId: actor.role === "ADMIN" ? searchParams?.userId : actor.id };
+  const filters = { from: searchParams?.from ?? range.from, to: searchParams?.to ?? range.to, clientId: searchParams?.clientId, projectId: searchParams?.projectId, userId: actor.role === "ADMIN" ? searchParams?.userId : actor.id, operationalTaskId: searchParams?.operationalTaskId };
   const [projects, report, users] = await Promise.all([
     listHourOptions(actor),
     getHourReport(actor, filters),

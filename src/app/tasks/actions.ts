@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
+import { createTimeEntryForOperationalTask } from "@/server/services/hours";
 import {
   changeOperationalTaskStatus,
   createOperationalTask,
@@ -92,5 +93,31 @@ export async function changeOperationalTaskStatusAction(
     };
   } catch (error) {
     return { success: false, message: error instanceof Error ? error.message : "No se pudo cambiar el estado." };
+  }
+}
+
+export async function registerOperationalTaskTimeAction(
+  _previous: TaskActionResult | null,
+  formData: FormData,
+): Promise<TaskActionResult> {
+  try {
+    const actor = await requireUser();
+    const hours = Number(formData.get("hours") ?? 0);
+    const minutesPart = Number(formData.get("minutes") ?? 0);
+    if (!Number.isInteger(hours) || hours < 0 || hours > 24) throw new Error("Las horas deben estar entre 0 y 24.");
+    if (!Number.isInteger(minutesPart) || minutesPart < 0 || minutesPart > 59) throw new Error("Los minutos deben estar entre 0 y 59.");
+    const minutes = hours * 60 + minutesPart;
+    if (minutes <= 0 || minutes > 1440) throw new Error("Ingresá una duración entre 1 minuto y 24 horas.");
+    const entry = await createTimeEntryForOperationalTask(actor, {
+      taskId: String(formData.get("taskId") ?? ""),
+      workDate: String(formData.get("workDate") ?? ""),
+      minutes,
+      additionalDetail: optionalString(formData.get("additionalDetail")),
+      idempotencyKey: String(formData.get("operationId") ?? ""),
+    });
+    revalidateTaskPaths();
+    return { success: true, id: entry.id, updatedAt: entry.createdAt.toISOString() };
+  } catch (error) {
+    return { success: false, message: error instanceof Error ? error.message : "No se pudo registrar el tiempo." };
   }
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { CalendarDays, Clock3, Pencil, X } from "lucide-react";
 import { ModalPortal } from "@/components/ui/modal-portal";
 import { Card } from "@/components/ui/card";
@@ -20,12 +21,14 @@ export function TaskDetailModal({
   today,
   onClose,
   onEdit,
+  onRegisterTime,
 }: {
   task: OperationalTaskDTO | null;
   isAdmin: boolean;
   today: string;
   onClose: () => void;
   onEdit: () => void;
+  onRegisterTime: () => void;
 }) {
   const router = useRouter();
   const [pendingStatus, setPendingStatus] = useState<OperationalTaskStatusDTO | null>(null);
@@ -56,6 +59,11 @@ export function TaskDetailModal({
 
   if (!task) return null;
   const overdue = Boolean(task.dueDate && task.dueDate.slice(0, 10) < today && task.status !== "DONE");
+  const formatMinutes = (minutes: number) => {
+    const hours = Math.floor(minutes / 60);
+    const rest = minutes % 60;
+    return hours ? `${hours} h${rest ? ` ${rest} min` : ""}` : `${rest} min`;
+  };
 
   const changeStatus = async (status: OperationalTaskStatusDTO) => {
     if (status === "BLOCKED" && pendingStatus !== "BLOCKED") {
@@ -128,10 +136,22 @@ export function TaskDetailModal({
                       <section className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
                         <p className="font-semibold text-emerald-900">Tarea completada.</p>
                         <p className="mt-1 text-sm text-emerald-800">Podés registrar el tiempo trabajado ahora o hacerlo más tarde.</p>
-                        {task.project ? <p className="mt-3 text-xs text-emerald-800">La carga rápida de tiempo se habilita en la integración con Tiempos.</p> : <p className="mt-3 text-xs text-emerald-800">Esta tarea no tiene proyecto, por eso no admite carga de tiempo.</p>}
-                        <Button type="button" variant="ghost" className="mt-2 px-0 text-xs text-emerald-900" onClick={() => setCompletionNotice(false)}>Ahora no</Button>
+                        {task.timeMinutes > 0 ? <p className="mt-2 text-sm text-emerald-900">Tiempo registrado: <strong>{formatMinutes(task.timeMinutes)}</strong>. ¿Querés agregar otro registro?</p> : null}
+                        {task.project ? <Button type="button" className="mt-3" onClick={onRegisterTime}>Registrar tiempo</Button> : <p className="mt-3 text-xs text-emerald-800">Esta tarea no tiene proyecto, por eso no admite carga de tiempo.</p>}
+                        <Button type="button" variant="ghost" className="ml-2 mt-3 text-xs text-emerald-900" onClick={() => setCompletionNotice(false)}>Ahora no</Button>
                       </section>
                     ) : null}
+                    <section>
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-500">Registros de tiempo vinculados</h3>
+                        {task.timeEntries.length > 0 ? <Link href={`/hours?from=${task.createdAt.slice(0, 10)}&to=${today}&operationalTaskId=${task.id}${isAdmin ? `&userId=${task.assigneeId}` : ""}`} className="text-xs font-medium text-brand hover:underline">Administrar en Tiempos →</Link> : null}
+                      </div>
+                      {task.timeEntries.length === 0 ? <p className="mt-2 text-sm text-gray-500">Todavía no hay tiempo registrado.</p> : (
+                        <div className="mt-2 divide-y divide-gray-100 rounded-xl border border-gray-100">
+                          {task.timeEntries.map((entry) => <div key={entry.id} className={`flex flex-wrap items-center justify-between gap-2 px-3 py-2.5 text-sm ${entry.status === "VOID" ? "text-gray-400 line-through" : ""}`}><div><span className="font-medium">{entry.user.name}</span><span className="ml-2 text-xs text-gray-500">{formatDate(entry.workDate)}</span><p className="mt-0.5 max-w-xl break-words text-xs text-gray-500">{entry.description}</p></div><span className="font-semibold tabular-nums">{formatMinutes(entry.minutes)}</span></div>)}
+                        </div>
+                      )}
+                    </section>
                   </div>
 
                   <aside className="space-y-5 rounded-xl border border-gray-100 bg-gray-50/70 p-4">
@@ -149,7 +169,9 @@ export function TaskDetailModal({
                     </div>
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">Tiempo registrado</p>
-                      <p className="mt-1 flex items-center gap-1.5 text-sm text-gray-600"><Clock3 className="h-4 w-4" /> Se habilita en la integración con Tiempos</p>
+                      <p className="mt-1 flex items-center gap-1.5 text-sm font-semibold text-gray-700"><Clock3 className="h-4 w-4" /> {task.timeMinutes > 0 ? formatMinutes(task.timeMinutes) : "Sin registros"}</p>
+                      <Button type="button" variant="secondary" className="mt-2 w-full text-xs" disabled={!task.project} onClick={onRegisterTime}>Registrar tiempo</Button>
+                      {!task.project ? <p className="mt-1 text-xs text-amber-700">Requiere un proyecto.</p> : null}
                     </div>
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">Cambiar estado</p>

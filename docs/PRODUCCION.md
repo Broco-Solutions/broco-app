@@ -161,6 +161,17 @@ ALLOW_PRODUCTION_MIGRATION=true pnpm prod:migrate:operational-tasks
 
 Este comando no se ejecuta automáticamente durante build o deploy.
 
+Después de completar y verificar el runner base, el vínculo nullable con
+`time_entries` se aplica con un segundo runner aditivo:
+
+```bash
+ALLOW_PRODUCTION_MIGRATION=true pnpm prod:migrate:operational-task-time
+```
+
+Su DDL está versionado en
+`prisma/migrations/20261001130000_link_operational_tasks_time_entries/migration.sql`.
+También debe ejecutarse dos veces: la segunda debe informar migración omitida.
+
 Nunca imprime URL, secretos ni DDL sensible. Sus estados son:
 
 | Estado | Acción |

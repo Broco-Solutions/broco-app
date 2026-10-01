@@ -19,6 +19,7 @@ import {
 } from "@/lib/operational-task-order";
 import { TaskDetailModal } from "./task-detail-modal";
 import { TaskFormModal } from "./task-form-modal";
+import { TaskTimeModal } from "./task-time-modal";
 import type { OperationalTaskDTO, TaskAssigneeOption, TaskProjectOption } from "./types";
 
 type StatusFilter = "OPEN" | "ALL" | "PENDING" | "IN_PROGRESS" | "BLOCKED" | "DONE";
@@ -59,10 +60,12 @@ export function TaskList({
   const [formOpen, setFormOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<OperationalTaskDTO | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [timeTaskId, setTimeTaskId] = useState<string | null>(null);
 
   useEffect(() => setTasks(initialTasks), [initialTasks]);
 
   const selectedTask = tasks.find((task) => task.id === selectedId) ?? null;
+  const timeTask = tasks.find((task) => task.id === timeTaskId) ?? null;
   const allProjects = useMemo(() => {
     const map = new Map(projects.map((project) => [project.id, project]));
     for (const task of tasks) if (task.project) map.set(task.project.id, task.project);
@@ -188,7 +191,7 @@ export function TaskList({
                     <td className="px-3 py-2.5"><div className="truncate" title={task.project?.name}>{task.project?.name ?? "—"}</div></td>
                     {isAdmin ? <td className="px-3 py-2.5"><div className="truncate" title={task.assignee.name}>{task.assignee.name}</div></td> : null}
                     <td className={`whitespace-nowrap px-3 py-2.5 tabular-nums ${overdue ? "font-semibold text-red-700" : ""}`}>{formatDateShort(task.dueDate)}</td>
-                    <td className="px-3 py-2.5 text-gray-400">—</td>
+                    <td className="px-3 py-2.5 whitespace-nowrap text-xs font-semibold tabular-nums text-gray-700">{task.timeMinutes > 0 ? `${Math.floor(task.timeMinutes / 60)} h ${task.timeMinutes % 60} min` : "—"}</td>
                     <td className="whitespace-nowrap px-3 py-2.5 text-xs tabular-nums text-gray-500">{formatDateShort(task.updatedAt)}</td>
                   </tr>
                 );
@@ -210,8 +213,9 @@ export function TaskList({
         </>
       )}
 
-      <TaskDetailModal task={selectedTask} isAdmin={isAdmin} today={today} onClose={closeDetail} onEdit={() => selectedTask && openEdit(selectedTask)} />
+      <TaskDetailModal task={selectedTask} isAdmin={isAdmin} today={today} onClose={closeDetail} onEdit={() => selectedTask && openEdit(selectedTask)} onRegisterTime={() => selectedTask && setTimeTaskId(selectedTask.id)} />
       <TaskFormModal open={formOpen} task={editingTask} isAdmin={isAdmin} actorId={actor.id} projects={allProjects} assignees={assignees} onClose={() => { setFormOpen(false); setEditingTask(null); }} />
+      <TaskTimeModal task={timeTask} today={today} onClose={() => setTimeTaskId(null)} />
     </div>
   );
 }

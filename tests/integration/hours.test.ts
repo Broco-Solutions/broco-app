@@ -1,6 +1,7 @@
 import { beforeAll, afterAll, describe, expect, it } from "vitest";
 import { prisma } from "@/server/prisma";
-import { createTimeEntry, getHourReport, listTimeEntries, updateTimeEntry, voidTimeEntry } from "@/server/services/hours";
+import { createTimeEntry, createTimeEntryForOperationalTask, getHourReport, listTimeEntries, updateTimeEntry, voidTimeEntry } from "@/server/services/hours";
+import { createOperationalTask, listOperationalTasks } from "@/server/services/operational-tasks";
 import { deleteProject } from "@/server/services/projects";
 import { todayKeyArgentina, toUtcDate } from "@/lib/dates";
 import type { CurrentUser } from "@/lib/auth";
@@ -9,6 +10,7 @@ const testDb = process.env.DATABASE_URL_TEST;
 const suite = testDb ? describe : describe.skip;
 const today = todayKeyArgentina();
 const future = new Date(toUtcDate(today).getTime() + 86400000).toISOString().slice(0, 10);
+const previousDay = new Date(toUtcDate(today).getTime() - 86400000).toISOString().slice(0, 10);
 let admin: CurrentUser; let collaboratorA: CurrentUser; let collaboratorB: CurrentUser; let projectA = ""; let projectB = "";
 
 suite("Horas V1", () => {
@@ -22,7 +24,10 @@ suite("Horas V1", () => {
     projectB = (await prisma.project.findFirstOrThrow({ where: { name: "Horas Test Proyecto B1" } })).id;
     await prisma.timeEntry.deleteMany({ where: { userId: { in: [a.id, ca.id, cb.id] } } });
   });
-  afterAll(async () => { await prisma.timeEntry.deleteMany({ where: { userId: { in: [admin.id, collaboratorA.id, collaboratorB.id] } } }); });
+  afterAll(async () => {
+    await prisma.timeEntry.deleteMany({ where: { userId: { in: [admin.id, collaboratorA.id, collaboratorB.id] } } });
+    await prisma.operationalTask.deleteMany({ where: { creatorId: { in: [admin.id, collaboratorA.id, collaboratorB.id] } } });
+  });
 
   it("normaliza minutos, coma/punto y permite reintento idempotente", async () => {
     const operationId = crypto.randomUUID();
@@ -94,5 +99,55 @@ suite("Horas V1", () => {
     ]);
     expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
     expect(results.filter((result) => result.status === "rejected")).toHaveLength(1);
+  });
+
+  it("registra tiempo real desde una tarea sin pedir otra descripción", async () => {
+    const task = await createOperationalTask(collaboratorA, { title: "Revisar proveedores", projectId: projectA });
+    const entry = await createTimeEntryForOperationalTask(collaboratorA, {
+      taskId: task.id,
+      workDate: previousDay,
+      minutes: 70,
+      additionalDetail: "Validación de CUIT",
+      idempotencyKey: crypto.randomUUID(),
+    });
+    expect(entry.operationalTaskId).toBe(task.id);
+    expect(entry.userId).toBe(collaboratorA.id);
+    expect(entry.projectId).toBe(projectA);
+    expect(entry.description).toBe("Revisar proveedores — Validación de CUIT");
+
+    const filtered = await listTimeEntries(collaboratorA, { from: previousDay, to: previousDay, operationalTaskId: task.id });
+    expect(filtered.map((item) => item.id)).toContain(entry.id);
+    const taskWithTime = (await listOperationalTasks(collaboratorA)).find((item) => item.id === task.id);
+    expect(taskWithTime?.timeMinutes).toBe(70);
+  });
+
+  it("protege tarea, usuario y proyecto en la carga rápida", async () => {
+    const assigned = await createOperationalTask(admin, { title: "Tarea de B", assigneeId: collaboratorB.id, projectId: projectB });
+    await expect(createTimeEntryForOperationalTask(collaboratorA, {
+      taskId: assigned.id, workDate: previousDay, minutes: 15, additionalDetail: null, idempotencyKey: crypto.randomUUID(),
+    })).rejects.toThrow("no encontrada");
+
+    const general = await createOperationalTask(collaboratorA, { title: "Tarea general" });
+    await expect(createTimeEntryForOperationalTask(collaboratorA, {
+      taskId: general.id, workDate: previousDay, minutes: 15, additionalDetail: null, idempotencyKey: crypto.randomUUID(),
+    })).rejects.toThrow("proyecto");
+
+    const adminEntry = await createTimeEntryForOperationalTask(admin, {
+      taskId: assigned.id, workDate: previousDay, minutes: 20, additionalDetail: null, idempotencyKey: crypto.randomUUID(),
+    });
+    expect(adminEntry.userId).toBe(collaboratorB.id);
+    expect(adminEntry.createdAt).toBeInstanceOf(Date);
+  });
+
+  it("excluye anulados del total de la tarea y conserva la auditoría existente", async () => {
+    const task = await createOperationalTask(collaboratorA, { title: "Tiempo anulable", projectId: projectA });
+    const entry = await createTimeEntryForOperationalTask(collaboratorA, {
+      taskId: task.id, workDate: previousDay, minutes: 35, additionalDetail: null, idempotencyKey: crypto.randomUUID(),
+    });
+    await voidTimeEntry(collaboratorA, entry.id, "Carga incorrecta");
+    const refreshed = (await listOperationalTasks(collaboratorA)).find((item) => item.id === task.id);
+    expect(refreshed?.timeMinutes).toBe(0);
+    expect(refreshed?.timeEntries.find((item) => item.id === entry.id)?.status).toBe("VOID");
+    expect(await prisma.timeEntryAudit.count({ where: { entryId: entry.id } })).toBe(2);
   });
 });

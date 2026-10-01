@@ -17,6 +17,7 @@
     "prod:inventory:compare": "tsx scripts/compare-production-inventories.ts",
     "prod:migrate:hours-auth": "tsx scripts/migrate-hours-auth-production.ts",
     "prod:migrate:operational-tasks": "tsx scripts/migrate-operational-tasks-production.ts",
+    "prod:migrate:operational-task-time": "tsx scripts/migrate-operational-task-time-production.ts",
     "seed:hours:test": "NODE_ENV=test tsx scripts/seed-hours-test.ts",
     "test": "vitest run",
     "test:unit": "vitest run --dir tests/unit",
