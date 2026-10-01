@@ -6,3 +6,13 @@
 - `pnpm lint`: correcto.
 - `pnpm build`: correcto.
 - `git diff --check`: correcto.
+
+## Publicación productiva
+
+- Backup PRE: `/home/rcoirini/backups/broco/broco-pre-mcp-identities-20261001-224734.dump`, 102.831 bytes, SHA-256 `f13c517f044a0d1d365dfe1b4fd99613cbccd207452bfc032d1a90e69023a174`; `pg_restore --list` confirmó que el dump custom es legible.
+- Inventario PRE: `/home/rcoirini/backups/broco/broco-pre-mcp-identities-20261001-224734.inventory.json`, SHA-256 `5e5be61bcc7b03c5d8d996521978b8efd9b58aab2b773750187d67e7470996e7`.
+- `prod:migrate:mcp-identities`: primera ejecución `PRECHECK_NOT_APPLIED`, `POSTCHECK_COMPLETE`, `MIGRATION_COMPLETED`; segunda ejecución `PRECHECK_COMPLETE`, `MIGRATION_SKIPPED`. No se ejecutaron runners de Tareas Operativas ni de TimeEntry.
+- Inventario POST: `/home/rcoirini/backups/broco/broco-post-mcp-identities-20261001-224734.inventory.json`, SHA-256 `0d2578099134386fd1d0db812d84ff5728c64539bdbf7f65a3f7f77618e7ceba`. `prod:inventory:compare` confirmó `INVENTORY_MATCH`, preservando la SOT histórica.
+- `main` se integró por fast-forward de `7e3a8c8` a `261d4cc` y se publicó en `origin/main`. En `main`: `pnpm test` 480/480, typecheck, lint, build y `git diff --check` correctos.
+- Vercel publicó `dpl_Enm9Q3Zk3YD651eh5Nr8SYbYypMf` para `261d4cc`, estado `READY`, con alias `https://app.brocosolutions.com`.
+- Smoke no autenticado: login disponible, `/tasks` redirige a login y `/api/mcp` responde `401`. No había credenciales productivas legítimas disponibles para smoke autenticado ADMIN/COLLABORATOR ni OAuth MCP; no se crearon usuarios ni datos de prueba.
