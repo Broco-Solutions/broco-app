@@ -18,11 +18,13 @@ test.describe("Tareas operativas V1", () => {
     await createForm.getByRole("option", { name: "Colaborador A Test" }).click();
     await createForm.getByRole("button", { name: "Sin proyecto" }).click();
     await createForm.getByRole("option", { name: "Horas Test Cliente A · Horas Test Proyecto A1" }).click();
+    await createForm.getByLabel("Vencimiento").fill(new Date(Date.now() - 86_400_000).toISOString().slice(0, 10));
     await createForm.getByLabel("Descripción").fill("Descripción extensa para validar el detalle operativo.");
     await createForm.getByRole("button", { name: "Crear tarea" }).click();
 
     const row = page.getByRole("button", { name: `Abrir tarea ${title}` });
     await expect(row).toBeVisible();
+    await expect(row.getByText("Vencida")).toBeVisible();
     await row.click();
     const detail = page.getByRole("dialog", { name: title });
     await expect(detail.getByText("Horas Test Cliente A · Horas Test Proyecto A1")).toBeVisible();
@@ -41,6 +43,16 @@ test.describe("Tareas operativas V1", () => {
     await timeForm.getByRole("button", { name: "Registrar tiempo" }).click();
     await expect(detail.getByText("25 min").first()).toBeVisible();
     await expect(detail.getByText(`${title} — Revisión inicial`)).toBeVisible();
+
+    await detail.getByRole("button", { name: "Completar tarea" }).click();
+    await expect(detail.getByText("Tarea completada.")).toBeVisible();
+    await expect(detail.getByText("Completada", { exact: true })).toBeVisible();
+    await expect(detail.getByText("Vencida", { exact: true })).toHaveCount(0);
+    await expect(detail.getByText("Tiempo registrado:").locator("..")).toContainText("25 min");
+    await expect(detail.getByText("¿Querés agregar otro registro?")).toBeVisible();
+    await expect(detail.getByRole("button", { name: "Ahora no" })).toBeVisible();
+    await detail.getByRole("button", { name: "Ahora no" }).click();
+    await expect(detail.getByRole("button", { name: "Reabrir como pendiente" })).toBeVisible();
   });
 
   test("COLLABORATOR ve sólo la experiencia propia y crea una tarea sin selector de responsable", async ({ page }) => {

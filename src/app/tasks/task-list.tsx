@@ -127,6 +127,9 @@ export function TaskList({
     setFormOpen(true);
   };
   const closeDetail = useCallback(() => setSelectedId(null), []);
+  const updateTaskStatus = useCallback((updated: Pick<OperationalTaskDTO, "id" | "status" | "updatedAt" | "completedAt" | "blockedReason">) => {
+    setTasks((current) => current.map((task) => task.id === updated.id ? { ...task, ...updated } : task));
+  }, []);
 
   return (
     <div className="space-y-4">
@@ -140,7 +143,7 @@ export function TaskList({
       </div>
 
       <div className="rounded-xl border border-gray-200 bg-white p-3">
-        <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-[minmax(180px,1.4fr),160px,minmax(170px,1fr),minmax(200px,1.2fr),160px,auto]">
+        <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-[minmax(180px,1.4fr),160px,minmax(170px,1fr),minmax(200px,1.2fr),160px,160px]">
           <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar tarea…" aria-label="Buscar tareas" />
           <Select value={status} onChange={(event) => setStatus(event.target.value as StatusFilter)} aria-label="Estado">
             <option value="OPEN">Abiertas</option><option value="ALL">Todos los estados</option><option value="PENDING">Pendientes</option><option value="IN_PROGRESS">En progreso</option><option value="BLOCKED">Bloqueadas</option><option value="DONE">Completadas</option>
@@ -213,7 +216,7 @@ export function TaskList({
         </>
       )}
 
-      <TaskDetailModal task={selectedTask} isAdmin={isAdmin} today={today} onClose={closeDetail} onEdit={() => selectedTask && openEdit(selectedTask)} onRegisterTime={() => selectedTask && setTimeTaskId(selectedTask.id)} />
+      <TaskDetailModal task={selectedTask} isAdmin={isAdmin} today={today} onClose={closeDetail} onEdit={() => selectedTask && openEdit(selectedTask)} onRegisterTime={() => selectedTask && setTimeTaskId(selectedTask.id)} onStatusChanged={updateTaskStatus} />
       <TaskFormModal open={formOpen} task={editingTask} isAdmin={isAdmin} actorId={actor.id} projects={allProjects} assignees={assignees} onClose={() => { setFormOpen(false); setEditingTask(null); }} />
       <TaskTimeModal task={timeTask} today={today} onClose={() => setTimeTaskId(null)} />
     </div>

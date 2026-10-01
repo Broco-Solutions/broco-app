@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { CalendarDays, Clock3, Pencil, X } from "lucide-react";
 import { ModalPortal } from "@/components/ui/modal-portal";
@@ -22,6 +21,7 @@ export function TaskDetailModal({
   onClose,
   onEdit,
   onRegisterTime,
+  onStatusChanged,
 }: {
   task: OperationalTaskDTO | null;
   isAdmin: boolean;
@@ -29,8 +29,8 @@ export function TaskDetailModal({
   onClose: () => void;
   onEdit: () => void;
   onRegisterTime: () => void;
+  onStatusChanged: (task: Pick<OperationalTaskDTO, "id" | "status" | "updatedAt" | "completedAt" | "blockedReason">) => void;
 }) {
-  const router = useRouter();
   const [pendingStatus, setPendingStatus] = useState<OperationalTaskStatusDTO | null>(null);
   const [blockedReason, setBlockedReason] = useState("");
   const [saving, setSaving] = useState(false);
@@ -82,9 +82,15 @@ export function TaskDetailModal({
       if (status === "BLOCKED") formData.set("blockedReason", blockedReason);
       const result = await changeOperationalTaskStatusAction(null, formData);
       if (!result.success) throw new Error(result.message);
+      onStatusChanged({
+        id: task.id,
+        status: result.status ?? status,
+        updatedAt: result.updatedAt,
+        completedAt: result.completedAt ?? null,
+        blockedReason: result.blockedReason ?? task.blockedReason,
+      });
       setPendingStatus(null);
       if (result.justCompleted) setCompletionNotice(true);
-      router.refresh();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "No se pudo cambiar el estado.");
     } finally {
@@ -172,14 +178,16 @@ export function TaskDetailModal({
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">Tiempo registrado</p>
                       <p className="mt-1 flex items-center gap-1.5 text-sm font-semibold text-gray-700"><Clock3 className="h-4 w-4" /> {task.timeMinutes > 0 ? formatMinutes(task.timeMinutes) : "Sin registros"}</p>
-                      <Button type="button" variant="secondary" className="mt-2 w-full text-xs" disabled={!task.project} onClick={onRegisterTime}>Registrar tiempo</Button>
-                      {!task.project ? <p className="mt-1 text-xs text-amber-700">Requiere un proyecto.</p> : null}
+                      {!completionNotice ? <Button type="button" variant="secondary" className="mt-2 w-full text-xs" disabled={!task.project} onClick={onRegisterTime}>Registrar tiempo</Button> : null}
+                      {!task.project && !completionNotice ? <p className="mt-1 text-xs text-amber-700">Requiere un proyecto.</p> : null}
                     </div>
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">Cambiar estado</p>
                       <div className="mt-2 grid gap-2">
                         {statuses.filter((status) => status !== task.status).map((status) => (
-                          <Button key={status} type="button" variant="secondary" disabled={saving} className="justify-start text-xs" onClick={() => void changeStatus(status)}>{OPERATIONAL_STATUS_LABELS[status]}</Button>
+                          <Button key={status} type="button" variant="secondary" disabled={saving} className="justify-start text-xs" onClick={() => void changeStatus(status)}>
+                            {status === "DONE" ? "Completar tarea" : task.status === "DONE" && status === "PENDING" ? "Reabrir como pendiente" : OPERATIONAL_STATUS_LABELS[status]}
+                          </Button>
                         ))}
                       </div>
                     </div>

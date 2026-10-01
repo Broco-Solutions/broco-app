@@ -3,24 +3,8 @@ import { loginAsAdmin } from "./auth";
 
 const BASE = "http://localhost:3299";
 
-// Income page now has 4 filter selects: status, type, client, project
-// Modal selects start at index 4: type, client, project, status
-const MODAL_TYPE = 2;
-const MODAL_CLIENT = 3;
-const MODAL_PROJECT = 4;
-// After the first 4 selects, modal form has: type, client, project, status, ...
-// For non-DEVELOPMENT type, the project field disappears, shifting later indices
-
-async function findSelectByOptions(page: import("@playwright/test").Page, texts: string[]) {
-  const selects = page.locator("select");
-  const count = await selects.count();
-  for (let i = 0; i < count; i++) {
-    const opts = await selects.nth(i).locator("option").allTextContents();
-    if (texts.every(t => opts.some(o => o.includes(t)))) {
-      return selects.nth(i);
-    }
-  }
-  return null;
+function incomeForm(page: import("@playwright/test").Page) {
+  return page.getByRole("heading", { name: "Nuevo ingreso" }).locator("xpath=..").locator("form");
 }
 
 test.describe("Income modal flows", () => {
@@ -36,29 +20,28 @@ test.describe("Income modal flows", () => {
     await page.getByRole("button", { name: "Nuevo cliente" }).click();
     await page.getByPlaceholder("Nombre").fill(clientName);
     await page.getByRole("button", { name: "Guardar" }).click();
-    await page.waitForTimeout(2500);
+    await expect(page.getByRole("link", { name: clientName })).toBeVisible();
 
     await page.goto(BASE + "/projects", { waitUntil: "load" });
     await page.getByRole("button", { name: "Nuevo proyecto" }).click();
     await expect(page.getByRole("heading", { name: "Nuevo proyecto" })).toBeVisible({ timeout: 5000 });
-    await page.locator("select").last().selectOption({ label: clientName });
+    const projectForm = page.getByRole("heading", { name: "Nuevo proyecto" }).locator("xpath=..").locator("form");
+    await projectForm.locator("select").selectOption({ label: clientName });
     await page.getByPlaceholder("Nombre").fill(projectName);
-    await page.getByRole("button", { name: "Guardar" }).click();
-    await page.waitForTimeout(3000);
+    await projectForm.getByRole("button", { name: "Guardar" }).click();
+    await expect(page.getByRole("link", { name: projectName })).toBeVisible();
 
     await page.goto(BASE + "/incomes", { waitUntil: "load" });
     await page.getByRole("button", { name: "Nuevo ingreso" }).click();
     await expect(page.getByRole("heading", { name: "Nuevo ingreso" })).toBeVisible({ timeout: 5000 });
 
-    const modalClientSel = page.locator("select").nth(MODAL_CLIENT);
-    await modalClientSel.selectOption({ label: clientName });
-    await page.waitForTimeout(300);
-
-    const modalTypeSel = page.locator("select").nth(MODAL_TYPE);
+    const form = incomeForm(page);
+    const modalTypeSel = form.locator("select").nth(0);
+    const modalClientSel = form.locator("select").nth(1);
     await modalTypeSel.selectOption({ label: "Desarrollo" });
-    await page.waitForTimeout(300);
+    await modalClientSel.selectOption({ label: clientName });
 
-    const modalProjSel = page.locator("select").nth(MODAL_PROJECT);
+    const modalProjSel = form.locator("select").nth(2);
     const projOpts = await modalProjSel.locator("option").allTextContents();
     expect(projOpts.some(o => o.includes(projectName))).toBe(true);
 
@@ -67,8 +50,8 @@ test.describe("Income modal flows", () => {
     const dateInputs = page.locator('input[type="date"]');
     if (await dateInputs.count() > 0) await dateInputs.last().fill("2026-07-15");
     await page.getByPlaceholder("Monto USD").fill("100");
-    await page.getByRole("button", { name: "Guardar" }).click();
-    await page.waitForTimeout(2500);
+    await form.getByRole("button", { name: "Guardar" }).click();
+    await expect(page.getByText("Test income A").first()).toBeVisible();
 
     await page.goto(BASE + "/incomes", { waitUntil: "load" });
     await expect(page.getByText("Test income A").first()).toBeVisible({ timeout: 5000 });
@@ -79,9 +62,10 @@ test.describe("Income modal flows", () => {
     await page.getByRole("button", { name: "Nuevo ingreso" }).click();
     await expect(page.getByRole("heading", { name: "Nuevo ingreso" })).toBeVisible({ timeout: 5000 });
 
-    const modalTypeSel = page.locator("select").nth(MODAL_TYPE);
-    const modalClientSel = page.locator("select").nth(MODAL_CLIENT);
-    const modalProjSel = page.locator("select").nth(MODAL_PROJECT);
+    const form = incomeForm(page);
+    const modalTypeSel = form.locator("select").nth(0);
+    const modalClientSel = form.locator("select").nth(1);
+    const modalProjSel = form.locator("select").nth(2);
 
     await modalTypeSel.selectOption({ label: "Desarrollo" });
 
@@ -138,14 +122,15 @@ test.describe("Income modal flows", () => {
     const usdConcept = `Modal currency USD ${Date.now()}`;
     await page.goto(BASE + "/incomes", { waitUntil: "load" });
     await page.getByRole("button", { name: "Nuevo ingreso" }).click();
-    await page.locator("select").nth(MODAL_TYPE).selectOption({ label: "Otro" });
-    await page.locator("select").nth(5).selectOption("PENDING");
-    await page.locator('input[type="date"]').last().fill("2026-09-27");
-    await page.getByRole("checkbox", { name: "Cargar en ARS" }).check();
-    await page.getByPlaceholder("Concepto *").fill(concept);
-    await page.getByPlaceholder("Monto ARS").fill("123000");
-    await page.getByPlaceholder("Tipo de cambio").fill("1230");
-    await page.getByRole("heading", { name: "Nuevo ingreso" }).locator(".." ).getByRole("button", { name: "Guardar", exact: true }).click();
+    let form = incomeForm(page);
+    await form.locator("select").nth(0).selectOption({ label: "Otro" });
+    await form.locator("select").nth(3).selectOption("PENDING");
+    await form.locator('input[type="date"]').fill("2026-09-27");
+    await form.getByRole("checkbox", { name: "Cargar en ARS" }).check();
+    await form.getByPlaceholder("Concepto *").fill(concept);
+    await form.getByPlaceholder("Monto ARS").fill("123000");
+    await form.getByPlaceholder("Tipo de cambio").fill("1230");
+    await form.getByRole("button", { name: "Guardar", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Nuevo ingreso" })).toBeHidden();
     await page.reload({ waitUntil: "load" });
     await page.locator("select").first().selectOption("all");
@@ -159,12 +144,13 @@ test.describe("Income modal flows", () => {
     await page.getByRole("button", { name: "Cancelar" }).click();
 
     await page.getByRole("button", { name: "Nuevo ingreso" }).click();
-    await page.locator("select").nth(MODAL_TYPE).selectOption({ label: "Otro" });
-    await page.locator("select").nth(5).selectOption("PENDING");
-    await page.locator('input[type="date"]').last().fill("2026-09-27");
-    await page.getByPlaceholder("Concepto *").fill(usdConcept);
-    await page.getByPlaceholder("Monto USD").fill("150");
-    await page.getByRole("heading", { name: "Nuevo ingreso" }).locator("..").getByRole("button", { name: "Guardar", exact: true }).click();
+    form = incomeForm(page);
+    await form.locator("select").nth(0).selectOption({ label: "Otro" });
+    await form.locator("select").nth(3).selectOption("PENDING");
+    await form.locator('input[type="date"]').fill("2026-09-27");
+    await form.getByPlaceholder("Concepto *").fill(usdConcept);
+    await form.getByPlaceholder("Monto USD").fill("150");
+    await form.getByRole("button", { name: "Guardar", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Nuevo ingreso" })).toBeHidden();
     await page.reload({ waitUntil: "load" });
     await page.locator("select").first().selectOption("all");

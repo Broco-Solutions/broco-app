@@ -54,10 +54,13 @@ Nota: `pnpm test:db:up` informó conflicto porque el contenedor canónico ya est
 - `pnpm exec tsc --noEmit`: pasó.
 - `pnpm build`: pasó; `/tasks` quedó incluida como ruta dinámica.
 - `git diff --check`: pasó.
-- `tests/e2e/operational-tasks.spec.ts`: 2 casos, todo pasó en build de producción local. Cubre ADMIN y COLLABORATOR, asignación, restricción por `HourAssignment`, bloqueo, tiempo real, navegación financiera y viewport móvil sin overflow.
-- La suite E2E global terminó con 25 casos aprobados y 5 fallidos. Los 2 casos de Tareas Operativas pasaron también dentro de la corrida global.
-- Los 5 fallos se reprodujeron en serie y corresponden a pruebas preexistentes: `hours-auth` exporta un rango fijo del 27/09/2026 aunque la carga usa la fecha actual; dos casos de `income-modal` dependen de índices/opciones de `select` que ya no coinciden con la UI; `shared-folder` espera un segundo elemento `code` que no se renderiza; y `smoke` no encuentra el ingreso creado con su flujo actual.
+- `tests/e2e/operational-tasks.spec.ts`: 2 casos, todo pasó en build de producción local. Cubre ADMIN y COLLABORATOR, asignación, restricción por `HourAssignment`, bloqueo, vencida calculada sin reemplazar estado, tiempo real, finalización con acumulado, reapertura, navegación financiera y viewport móvil sin overflow.
+- Suite E2E global: 30 casos, todo pasó con 6 workers.
+- Se actualizaron cinco pruebas preexistentes sin cambiar comportamiento sano: `hours-auth` ahora exporta la fecha realmente cargada; `income-modal` y `smoke` localizan selects dentro del modal en vez de usar índices globales; `shared-folder` obtiene el enlace desde el elemento `<a>`, la contraseña desde `<code>` y la revela si un refresh concurrente vuelve a ocultarla.
 - Se verificó con test de integración que dos proyectos llamados `Proyecto igual`, pertenecientes a clientes distintos, permanecen inequívocos por la relación `project.client`; la UI siempre presenta `Cliente · Proyecto`.
 - El servidor se levantó contra la base local de test. Para Auth.js se reutilizó `SESSION_SECRET` como `AUTH_SECRET` en el proceso local; no se creó ni imprimió ningún secreto.
-- Verificación de navegador real: login cargó sin errores de consola; los recorridos de tareas se validaron luego con Playwright sobre `http://localhost:3299`.
+- Verificación visual autenticada con navegador real: ADMIN y COLLABORATOR cargaron sin overlay ni overflow horizontal; la tabla truncó títulos largos, el detalle mostró la descripción completa y el formulario de tiempo sólo pidió fecha, horas, minutos y detalle opcional.
+- Se corrigió el grid de filtros ADMIN para que use dos filas a 1280 px y una fila sólo con ancho suficiente.
+- Se corrigió la finalización para conservar abierto el detalle, mostrar la confirmación, el tiempo acumulado y la invitación opcional a registrar otro tiempo. Los cambios de estado actualizan la lista local con el `updatedAt` devuelto por el servidor y mantienen CAS.
+- Verificado de punta a punta: el registro desde la tarea apareció como `TimeEntry` en Tiempos → Registros, permitió la corrección administrativa existente y fue incluido en Reportes. La descripción usó título más detalle opcional, sin copiar la descripción larga.
 - No se ejecutaron DDL ni migraciones contra producción, ni se hizo deploy.

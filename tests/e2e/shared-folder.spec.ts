@@ -21,7 +21,7 @@ test.describe("Shared project folder link", () => {
     await page.getByRole("button", { name: "Nuevo cliente" }).click();
     await page.getByPlaceholder("Nombre").fill(clientName);
     await page.getByRole("button", { name: "Guardar" }).click();
-    await page.waitForTimeout(2500);
+    await expect(page.getByRole("link", { name: clientName })).toBeVisible();
 
     // 2. Crear proyecto
     await page.goto(BASE + "/projects", { waitUntil: "load" });
@@ -29,10 +29,11 @@ test.describe("Shared project folder link", () => {
     await expect(page.getByRole("heading", { name: "Nuevo proyecto" })).toBeVisible({
       timeout: 5000,
     });
-    await page.locator("select").last().selectOption({ index: 1 });
+    const projectForm = page.getByRole("heading", { name: "Nuevo proyecto" }).locator("xpath=..").locator("form");
+    await projectForm.locator("select").selectOption({ label: clientName });
     await page.getByPlaceholder("Nombre").fill(projectName);
-    await page.getByRole("button", { name: "Guardar" }).click();
-    await page.waitForTimeout(3000);
+    await projectForm.getByRole("button", { name: "Guardar" }).click();
+    await expect(page.getByRole("link", { name: projectName })).toBeVisible();
 
     // 3. Ir a Planificación
     await page.goto(BASE + "/projects", { waitUntil: "load" });
@@ -55,11 +56,17 @@ test.describe("Shared project folder link", () => {
     // 5. Configurar acceso del cliente y obtener slug + password
     await page.getByRole("button", { name: "Configurar acceso" }).click();
     await expect(page.getByText("Copiar enlace")).toBeVisible({ timeout: 5000 });
-    const shareUrl = (await page.locator("code").first().textContent()) ?? "";
+    const shareUrl = (await page.locator('a[target="_blank"][href*="/p/"]').getAttribute("href")) ?? "";
     const slug = shareUrl.trim().split("/").pop() ?? "";
     expect(slug.length).toBeGreaterThan(0);
 
-    const password = ((await page.locator("code").nth(1).textContent()) ?? "").trim();
+    const passwordCode = page.locator("code").first();
+    if (((await passwordCode.textContent()) ?? "").includes("•")) {
+      await page.getByRole("button", { name: "Ver" }).click();
+      await expect(page.getByRole("button", { name: "Ocultar" })).toBeVisible();
+    }
+    const password = ((await passwordCode.textContent()) ?? "").trim();
+    expect(password).not.toContain("•");
     expect(password.length).toBeGreaterThan(0);
 
     // 6. Cliente entra al portal y ve la tarjeta con el texto configurado

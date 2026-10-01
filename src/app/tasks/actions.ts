@@ -13,7 +13,15 @@ import {
 } from "@/server/services/operational-tasks";
 
 export type TaskActionResult =
-  | { success: true; id: string; updatedAt: string; justCompleted?: boolean }
+  | {
+      success: true;
+      id: string;
+      updatedAt: string;
+      justCompleted?: boolean;
+      status?: "PENDING" | "IN_PROGRESS" | "BLOCKED" | "DONE";
+      completedAt?: string | null;
+      blockedReason?: string | null;
+    }
   | { success: false; message: string };
 
 function optionalString(value: FormDataEntryValue | null): string | null {
@@ -90,6 +98,9 @@ export async function changeOperationalTaskStatusAction(
       id: result.task.id,
       updatedAt: result.task.updatedAt.toISOString(),
       justCompleted: result.justCompleted,
+      status: result.task.status,
+      completedAt: result.task.completedAt?.toISOString() ?? null,
+      blockedReason: result.task.blockedReason,
     };
   } catch (error) {
     return { success: false, message: error instanceof Error ? error.message : "No se pudo cambiar el estado." };
