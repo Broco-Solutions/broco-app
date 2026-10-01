@@ -151,9 +151,9 @@ export function TaskList({
           <SearchableSelect value={clientId} onChange={(value) => { setClientId(value); if (projectId && allProjects.find((project) => project.id === projectId)?.client.id !== value) setProjectId(""); }} options={clients} placeholder="Todos los clientes" />
           <SearchableSelect value={projectId} onChange={setProjectId} options={filteredProjectOptions} placeholder="Todos los proyectos" />
           {isAdmin ? <SearchableSelect value={assigneeId} onChange={setAssigneeId} options={assignees.map((user) => ({ id: user.id, name: user.name }))} placeholder="Responsable" /> : (
-            <Select value={due} onChange={(event) => setDue(event.target.value as DueFilter)} aria-label="Vencimiento"><option value="ALL">Cualquier vencimiento</option><option value="OVERDUE">Vencidas</option><option value="TODAY">Vencen hoy</option><option value="NEXT_7_DAYS">Próximos 7 días</option><option value="NO_DUE">Sin vencimiento</option></Select>
+            <Select value={due} onChange={(event) => setDue(event.target.value as DueFilter)} aria-label="Vencimiento"><option value="ALL">Vencimiento</option><option value="OVERDUE">Vencidas</option><option value="TODAY">Vencen hoy</option><option value="NEXT_7_DAYS">Próximos 7 días</option><option value="NO_DUE">Sin vencimiento</option></Select>
           )}
-          {isAdmin ? <Select value={due} onChange={(event) => setDue(event.target.value as DueFilter)} aria-label="Vencimiento"><option value="ALL">Cualquier vencimiento</option><option value="OVERDUE">Vencidas</option><option value="TODAY">Vencen hoy</option><option value="NEXT_7_DAYS">Próximos 7 días</option><option value="NO_DUE">Sin vencimiento</option></Select> : null}
+          {isAdmin ? <Select value={due} onChange={(event) => setDue(event.target.value as DueFilter)} aria-label="Vencimiento"><option value="ALL">Vencimiento</option><option value="OVERDUE">Vencidas</option><option value="TODAY">Vencen hoy</option><option value="NEXT_7_DAYS">Próximos 7 días</option><option value="NO_DUE">Sin vencimiento</option></Select> : null}
         </div>
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
           <p className="text-xs text-gray-500">{filtered.length} de {tasks.length} tareas · seleccioná una fila para abrir el detalle</p>
