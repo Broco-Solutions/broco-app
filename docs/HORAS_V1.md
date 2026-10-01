@@ -26,6 +26,7 @@ clientes se derivan de esos proyectos existentes.
 - `bcryptjs` hashea contraseñas; los enlaces de activación son tokens aleatorios, almacenados solo como SHA-256, de un uso y con vencimiento de 24 horas. Emitir uno nuevo revoca los anteriores; reclamarlo, activar la cuenta e invalidar el resto sucede atómicamente. El token en claro no se persiste ni se registra.
 - La suma diaria se valida dentro de una transacción Serializable con lock advisory por persona/fecha. El máximo es 1440 minutos. La fecha operativa usa `America/Argentina/Cordoba`, se valida como fecha calendario real y las correcciones usan control de versión para no sobrescribir cambios concurrentes.
 - `TimeEntry` separa la persona que trabajó (`userId`) de quien cargó o corrigió (`createdById`/`modifiedById`) y conserva auditoría before/after.
+- La carga y corrección manual usan campos enteros `Horas` (0–24) y `Minutos` (0–59). Ambos pueden quedar vacíos como cero; el total debe estar entre 1 y 1440 minutos. La base conserva únicamente `TimeEntry.minutes`.
 
 ## Acceso inicial
 
@@ -63,7 +64,7 @@ La definición de migración ya declara los índices operativos de usuarios, tok
    `set -a; source .env.test; set +a; HOURS_TEST_PASSWORD='(secreto temporal)' pnpm seed:hours:test`.
 5. Para navegador, iniciar el servidor apuntando explícitamente a `DATABASE_URL_TEST`, con `AUTH_SECRET` temporal y `PORT=3299`.
 6. Ejecutar `pnpm exec vitest run tests/integration/hours.test.ts` y `pnpm test:e2e`. El E2E usa login real de Auth.js, no cookies compartidas.
-7. Verificar activación, carga con minutos/horas y coma/punto, cambio de unidad, límite de 24 horas, asignación incorrecta, fechas futuras, filtros, CSV, corrección, anulación e historial.
+7. Verificar activación, carga con horas/minutos enteros, límite de 24 horas, asignación incorrecta, fechas futuras, filtros, CSV, corrección, anulación e historial.
 
 Para preparar las tres identidades y dos proyectos de prueba sin guardar contraseñas, usar una variable temporal:
 

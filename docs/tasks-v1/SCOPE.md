@@ -18,6 +18,7 @@
 - Al entrar en `DONE`, se establece `completedAt`; al reabrir, se limpia.
 - Completar una tarea no obliga a registrar tiempo.
 - Registrar tiempo requiere que la tarea tenga proyecto y crea un `TimeEntry` real.
+- La carga rápida pide fecha, horas, minutos y detalle opcional; deriva usuario, proyecto y descripción desde la tarea y persiste únicamente minutos totales.
 - Los tiempos anulados no integran el total mostrado en la tarea.
 
 ## Fuera de alcance

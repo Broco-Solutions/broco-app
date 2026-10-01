@@ -76,3 +76,22 @@ Nota: `pnpm test:db:up` informó conflicto porque el contenedor canónico ya est
 - `pnpm lint`, `pnpm exec tsc --noEmit`, `pnpm build` y `git diff --check`: todo pasó.
 - Verificación de navegador sobre el build local: login renderizó contenido e interacciones, sin overlay de error. Se usaron únicamente la base y las credenciales locales de test existentes.
 - No se ejecutaron DDL ni migraciones contra producción, ni se hizo push, merge o deploy.
+
+## Ajuste UX definitivo — Horas + Minutos
+
+- El patrón anterior `Duración + Unidad` fue reemplazado en todos los formularios humanos: creación normal, carga rápida desde tarea y corrección de registros. No tenía consumidores externos; servicios, exportación, reportes y base ya operaban con minutos totales.
+- Los campos compartidos aceptan vacío como cero y restringen enteros: Horas 0–24, Minutos 0–59 y total 1–1440. La misma conversión se valida nuevamente en servidor.
+- La edición convierte los minutos persistidos con `floor(total / 60)` y `total % 60`; auditoría, anulación lógica y CAS permanecen sin cambios.
+- Suite focalizada de Tareas/Tiempos y duración: 3 archivos, 28 tests, todo pasó.
+- `pnpm test`: 50 archivos, 472 tests, todo pasó.
+- `tests/e2e/operational-tasks.spec.ts`: 2 casos, todo pasó. Cubre fecha de hoy, campos vacíos, teclado, responsive, persistencia real, acumulado y corrección ADMIN 25 min → 1 h 35 min.
+- Suite E2E global: 30 casos, todo pasó con 6 workers. Incluye creación normal sólo con minutos y con horas + minutos.
+- `pnpm lint`, `pnpm exec tsc --noEmit`, `pnpm build` y `git diff --check`: todo pasó.
+- La revisión en navegador sobre el build local no mostró overlay de error ni overflow horizontal en 375 px.
+- No se requiere DDL adicional: `TimeEntry.minutes` sigue siendo la única representación persistida.
+
+## Gate de integración y producción
+
+- `git fetch origin` confirmó `main` y `origin/main` alineados en `00f2354`; la feature es un avance lineal de nueve commits, sin divergencias.
+- Los DDL de Tareas Operativas son aditivos y cuentan con runners idempotentes probados, pero todavía requieren la ventana controlada de `docs/PRODUCCION.md`: snapshot verificable del proveedor, inventario PRE, doble ejecución controlada de ambos runners e inventario POST coincidente.
+- Al no estar disponibles en este entorno la confirmación del backup ni la ubicación segura para inventarios/log de ventana, se detuvo antes de merge, push y deployment. No se ejecutó ningún DDL contra producción.

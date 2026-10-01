@@ -1,7 +1,6 @@
 "use client";
 
 import { Input } from "@/components/ui/input";
-import { formatTimeMinutes, previewTimeDuration, type TimeDurationUnit } from "@/lib/time-duration";
 
 export function TimeEntryDateField({
   value,
@@ -33,43 +32,50 @@ export function TimeEntryDateField({
   );
 }
 
-export function TimeDurationField({
-  duration,
-  unit,
-  onDurationChange,
-  onUnitChange,
+export function TimeDurationFields({
+  hours,
+  minutes,
+  onHoursChange,
+  onMinutesChange,
+  className,
 }: {
-  duration: string;
-  unit: TimeDurationUnit;
-  onDurationChange: (value: string) => void;
-  onUnitChange: (value: TimeDurationUnit) => void;
+  hours: string;
+  minutes: string;
+  onHoursChange: (value: string) => void;
+  onMinutesChange: (value: string) => void;
+  className?: string;
 }) {
-  const equivalent = previewTimeDuration(duration, unit);
   return (
-    <div className="grid gap-4 md:grid-cols-[1fr,160px]">
+    <div className={`grid grid-cols-2 gap-4 ${className ?? ""}`}>
       <label>
-        <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Duración</span>
+        <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Horas</span>
         <Input
-          name="duration"
-          inputMode="decimal"
-          value={duration}
-          onChange={(event) => onDurationChange(event.target.value)}
-          placeholder={unit === "HOURS" ? "1,5" : "90"}
+          name="hours"
+          type="number"
+          min="0"
+          max="24"
+          step="1"
+          inputMode="numeric"
+          value={hours}
+          onChange={(event) => onHoursChange(event.target.value)}
+          placeholder="0"
           className="mt-1"
         />
-        <span className="mt-1 block text-xs text-gray-500">Equivalencia: {equivalent ? formatTimeMinutes(equivalent) : "—"}</span>
       </label>
       <label>
-        <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Unidad</span>
-        <select
-          name="unit"
-          value={unit}
-          onChange={(event) => onUnitChange(event.target.value as TimeDurationUnit)}
-          className="mt-1 h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm"
-        >
-          <option value="MINUTES">Minutos</option>
-          <option value="HOURS">Horas</option>
-        </select>
+        <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Minutos</span>
+        <Input
+          name="minutes"
+          type="number"
+          min="0"
+          max="59"
+          step="1"
+          inputMode="numeric"
+          value={minutes}
+          onChange={(event) => onMinutesChange(event.target.value)}
+          placeholder="0"
+          className="mt-1"
+        />
       </label>
     </div>
   );

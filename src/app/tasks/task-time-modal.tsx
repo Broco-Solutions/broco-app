@@ -3,10 +3,9 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Clock3 } from "lucide-react";
-import { TimeDurationField, TimeEntryDateField } from "@/components/hours/time-entry-fields";
+import { TimeDurationFields, TimeEntryDateField } from "@/components/hours/time-entry-fields";
 import { EditEntityModal } from "@/components/ui/edit-entity-modal";
 import { Textarea } from "@/components/ui/textarea";
-import type { TimeDurationUnit } from "@/lib/time-duration";
 import { registerOperationalTaskTimeAction } from "./actions";
 import type { OperationalTaskDTO } from "./types";
 
@@ -21,8 +20,8 @@ export function TaskTimeModal({
 }) {
   const router = useRouter();
   const [workDate, setWorkDate] = useState(today);
-  const [duration, setDuration] = useState("");
-  const [unit, setUnit] = useState<TimeDurationUnit>("MINUTES");
+  const [hours, setHours] = useState("");
+  const [minutes, setMinutes] = useState("");
   const [detail, setDetail] = useState("");
   const [operationId, setOperationId] = useState("");
   const [pending, setPending] = useState(false);
@@ -32,8 +31,8 @@ export function TaskTimeModal({
   useEffect(() => {
     if (!taskId) return;
     setWorkDate(today);
-    setDuration("");
-    setUnit("MINUTES");
+    setHours("");
+    setMinutes("");
     setDetail("");
     setError(null);
     setOperationId(crypto.randomUUID());
@@ -49,8 +48,8 @@ export function TaskTimeModal({
       const formData = new FormData();
       formData.set("taskId", task.id);
       formData.set("workDate", workDate);
-      formData.set("duration", duration);
-      formData.set("unit", unit);
+      formData.set("hours", hours);
+      formData.set("minutes", minutes);
       formData.set("additionalDetail", detail);
       formData.set("operationId", operationId);
       const result = await registerOperationalTaskTimeAction(null, formData);
@@ -90,7 +89,7 @@ export function TaskTimeModal({
       {!task.project ? <p role="alert" className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">Asigná un proyecto a la tarea antes de registrar tiempo.</p> : null}
       <div className="space-y-4">
         <TimeEntryDateField value={workDate} max={today} onChange={setWorkDate} />
-        <TimeDurationField duration={duration} unit={unit} onDurationChange={setDuration} onUnitChange={setUnit} />
+        <TimeDurationFields hours={hours} minutes={minutes} onHoursChange={setHours} onMinutesChange={setMinutes} />
         <label><span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Detalle adicional</span><Textarea value={detail} onChange={(event) => setDetail(event.target.value)} rows={3} maxLength={1600} placeholder="Opcional: qué parte se trabajó" className="mt-1" /><p className="mt-1 text-xs text-gray-500">La descripción del registro será “{task.title}{detail.trim() ? ` — ${detail.trim()}` : ""}”.</p></label>
       </div>
     </EditEntityModal>

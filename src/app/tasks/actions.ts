@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
-import { parseTimeDuration } from "@/lib/time-duration";
+import { parseTimeDurationFields } from "@/lib/time-duration";
 import { createTimeEntryForOperationalTask } from "@/server/services/hours";
 import {
   changeOperationalTaskStatus,
@@ -114,7 +114,7 @@ export async function registerOperationalTaskTimeAction(
 ): Promise<TaskActionResult> {
   try {
     const actor = await requireUser();
-    const minutes = parseTimeDuration(formData.get("duration"), formData.get("unit"));
+    const minutes = parseTimeDurationFields(formData.get("hours"), formData.get("minutes"));
     const entry = await createTimeEntryForOperationalTask(actor, {
       taskId: String(formData.get("taskId") ?? ""),
       workDate: String(formData.get("workDate") ?? ""),

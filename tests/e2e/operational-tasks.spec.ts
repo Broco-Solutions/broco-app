@@ -49,13 +49,15 @@ test.describe("Tareas operativas V1", () => {
     await detail.getByRole("button", { name: "Registrar tiempo" }).click();
     const timeForm = page.getByRole("heading", { name: "Registrar tiempo" }).locator("xpath=ancestor::form");
     await expect(timeForm.locator('input[name="workDate"]')).toHaveValue(todayInArgentina());
-    await expect(timeForm.locator('select[name="unit"]')).toHaveValue("MINUTES");
-    await timeForm.locator('select[name="unit"]').selectOption("HOURS");
-    await timeForm.getByLabel("Duración").fill("1,5");
-    await expect(timeForm.getByText("Equivalencia: 1 h 30 min")).toBeVisible();
-    await timeForm.locator('select[name="unit"]').selectOption("MINUTES");
-    await timeForm.getByLabel("Duración").fill("25");
-    await expect(timeForm.getByText("Equivalencia: 25 min")).toBeVisible();
+    await expect(timeForm.getByLabel("Horas")).toHaveValue("");
+    await expect(timeForm.getByLabel("Minutos")).toHaveValue("");
+    await timeForm.getByLabel("Horas").focus();
+    await page.keyboard.press("Tab");
+    await expect(timeForm.getByLabel("Minutos")).toBeFocused();
+    await page.setViewportSize({ width: 375, height: 812 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(await page.evaluate(() => document.documentElement.clientWidth) + 1);
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await timeForm.getByLabel("Minutos").fill("25");
     await timeForm.getByLabel("Detalle adicional").fill("Revisión inicial");
     await timeForm.getByRole("button", { name: "Registrar tiempo" }).click();
     await expect(detail.getByText("25 min").first()).toBeVisible();
@@ -74,6 +76,19 @@ test.describe("Tareas operativas V1", () => {
     await page.goto("/hours");
     await expect(page.getByText(`${title} — Revisión inicial`).last()).toBeVisible();
     await expect(page.getByRole("cell", { name: "25 min" }).last()).toBeVisible();
+    const entryRow = page.getByRole("row").filter({ hasText: `${title} — Revisión inicial` });
+    await entryRow.getByRole("button", { name: "Corregir" }).click();
+    const correctionForm = page.locator("form").filter({ has: page.locator('input[name="expectedUpdatedAt"]') });
+    await expect(correctionForm.getByLabel("Horas")).toHaveValue("0");
+    await expect(correctionForm.getByLabel("Minutos")).toHaveValue("25");
+    await correctionForm.getByLabel("Horas").fill("1");
+    await correctionForm.getByLabel("Minutos").fill("35");
+    await correctionForm.locator('input[name="reason"]').fill("Corrección E2E");
+    const correctionResponse = page.waitForResponse((response) => response.url().includes("/hours") && response.request().method() === "POST");
+    await correctionForm.getByRole("button", { name: "Guardar", exact: true }).click();
+    await correctionResponse;
+    await page.reload();
+    await expect(page.getByRole("row").filter({ hasText: `${title} — Revisión inicial` }).getByRole("cell", { name: "1 h 35 min" })).toBeVisible();
   });
 
   test("COLLABORATOR ve sólo la experiencia propia y crea una tarea sin selector de responsable", async ({ page }) => {

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { prisma } from "@/server/prisma";
 import { type CurrentUser } from "@/lib/auth";
 import { isValidCalendarDateKey, todayKeyArgentina, toUtcDate } from "@/lib/dates";
+import { formatTimeMinutes } from "@/lib/time-duration";
 
 const dateSchema = z.string().refine(isValidCalendarDateKey, "Fecha inválida.");
 const entrySchema = z.object({
@@ -179,4 +180,4 @@ export async function updateTimeEntry(actor: CurrentUser, id: string, input: Omi
   return updated;
 }
 
-export function formatMinutes(minutes: number) { const h = Math.floor(minutes / 60); const m = minutes % 60; return h ? `${h} h${m ? ` ${m} min` : ""}` : `${m} min`; }
+export const formatMinutes = formatTimeMinutes;
