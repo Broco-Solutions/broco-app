@@ -16,7 +16,7 @@ export function Sidebar({ role }: { role?: "ADMIN" | "COLLABORATOR" }) {
         </Link>
       </div>
       <nav className="flex-1 space-y-0.5 px-2">
-        {navigationItems.filter((item) => role === "ADMIN" || item.href === "/hours").map((item) => {
+        {navigationItems.filter((item) => role === "ADMIN" || item.href === "/tasks" || item.href === "/hours").map((item) => {
           const active = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
           return (
             <div key={item.href}>

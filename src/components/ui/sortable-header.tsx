@@ -1,7 +1,6 @@
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
-import type { FinancialRecordSort, FinancialRecordSortKey } from "@/lib/financial-record-order";
 
-export function SortableHeader({
+export function SortableHeader<Key extends string>({
   label,
   sortKey,
   sort,
@@ -9,10 +8,10 @@ export function SortableHeader({
   onSort,
 }: {
   label: string;
-  sortKey: FinancialRecordSortKey;
-  sort: FinancialRecordSort;
+  sortKey: Key;
+  sort: "auto" | `${Key}-asc` | `${Key}-desc`;
   defaultDirection?: "asc" | "desc";
-  onSort: (key: FinancialRecordSortKey) => void;
+  onSort: (key: Key) => void;
 }) {
   const explicitDirection = sort === `${sortKey}-asc` ? "asc" : sort === `${sortKey}-desc` ? "desc" : null;
   const direction = explicitDirection ?? (sort === "auto" ? defaultDirection : undefined);

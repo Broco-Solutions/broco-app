@@ -9,6 +9,7 @@ import {
   UserRoundCog,
   UsersRound,
   Clock3,
+  ListTodo,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -21,6 +22,7 @@ export const navigationItems = [
   { href: "/projects", label: "Proyectos", icon: Layers },
   { href: "/incomes", label: "Ingresos", icon: CircleDollarSign },
   { href: "/expenses", label: "Gastos", icon: Activity },
+  { href: "/tasks", label: "Tareas", icon: ListTodo },
   {
     href: "/hours",
     label: "Tiempos",

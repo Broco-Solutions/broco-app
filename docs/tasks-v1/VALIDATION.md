@@ -19,3 +19,9 @@ Este documento se actualizará con cada lote.
 - `git diff --check`: pasó.
 
 Nota: `pnpm test:db:up` informó conflicto porque el contenedor canónico ya estaba iniciado; se verificó que `broco_finance_test_db` estaba `healthy` en el puerto 5434 y se continuó con esa instancia.
+
+## Lote 2
+
+- `pnpm exec tsc --noEmit`: pasó.
+- `pnpm exec vitest run tests/unit/operational-task-order.test.ts tests/integration/operational-tasks.test.ts`: 2 archivos, 8 tests, todo pasó.
+- Regresión de orden financiero: pasó junto con la primera verificación de UI compartida.
