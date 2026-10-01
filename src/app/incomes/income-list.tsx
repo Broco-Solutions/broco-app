@@ -244,8 +244,8 @@ export function IncomeList({ initialIncomes, projects, clients, incomeTypes }: {
             <SearchableSelect value={fProject} onChange={(v) => { setFProject(v); updateQuery({ project: v || null }); }} options={projects.filter(p => !fClient || p.clientId === fClient)} placeholder="Proyecto" className="w-36 text-xs" />
             <Input type="text" value={search} onChange={(e) => setSearch(e.target.value)} className="w-36 text-xs" placeholder="Buscar concepto…" />
             <div className="flex flex-wrap items-center gap-1">
-              <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-32 text-xs h-8" placeholder="Desde" />
-              <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-32 text-xs h-8" placeholder="Hasta" />
+              <Input type="date" value={dateFrom} onChange={(e) => { const value = e.target.value; setDateFrom(value); updateQuery({ from: value || null }); }} className="w-32 text-xs h-8" placeholder="Desde" />
+              <Input type="date" value={dateTo} onChange={(e) => { const value = e.target.value; setDateTo(value); updateQuery({ to: value || null }); }} className="w-32 text-xs h-8" placeholder="Hasta" />
               {(dateFrom || dateTo) && <Button variant="ghost" className="text-xs" onClick={clearRange}>Limpiar fechas</Button>}
             </div>
           </div>
