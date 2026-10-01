@@ -22,7 +22,7 @@ export default async function TasksPage() {
     <div className="space-y-6">
       <PageHeader
         eyebrow="Operación"
-        title="Tareas"
+        title={actor.role === "ADMIN" ? "Tareas" : "Mis tareas"}
         description={actor.role === "ADMIN" ? "Seguí y administrá el trabajo operativo del equipo." : "Organizá tu trabajo cotidiano y registrá tus avances."}
         meta={null}
       />

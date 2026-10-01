@@ -36,17 +36,19 @@ export function TaskDetailModal({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [completionNotice, setCompletionNotice] = useState(false);
+  const taskId = task?.id ?? null;
+  const initialBlockedReason = task?.blockedReason ?? "";
 
   useEffect(() => {
-    if (!task) return;
+    if (!taskId) return;
     setPendingStatus(null);
-    setBlockedReason(task.blockedReason ?? "");
+    setBlockedReason(initialBlockedReason);
     setError(null);
     setCompletionNotice(false);
-  }, [task?.id]);
+  }, [initialBlockedReason, taskId]);
 
   useEffect(() => {
-    if (!task) return;
+    if (!taskId) return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
@@ -55,7 +57,7 @@ export function TaskDetailModal({
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, [onClose, task?.id]);
+  }, [onClose, taskId]);
 
   if (!task) return null;
   const overdue = Boolean(task.dueDate && task.dueDate.slice(0, 10) < today && task.status !== "DONE");

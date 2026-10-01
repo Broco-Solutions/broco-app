@@ -46,3 +46,18 @@ Nota: `pnpm test:db:up` informó conflicto porque el contenedor canónico ya est
 - Se revisó la autenticación MCP real: Auth0 OAuth valida issuer, audience, allowlist y scopes, pero no resuelve un `AppUser` activo ni su rol/asignaciones.
 - Las tools operativas no fueron registradas para evitar que una identidad MCP pueda eludir el scope ADMIN/COLLABORATOR.
 - La decisión necesaria quedó registrada en `DECISIONS_PENDING.md`.
+
+## Lote 6
+
+- `pnpm test`: 49 archivos, 462 tests, todo pasó.
+- `pnpm lint`: pasó sin warnings.
+- `pnpm exec tsc --noEmit`: pasó.
+- `pnpm build`: pasó; `/tasks` quedó incluida como ruta dinámica.
+- `git diff --check`: pasó.
+- `tests/e2e/operational-tasks.spec.ts`: 2 casos, todo pasó en build de producción local. Cubre ADMIN y COLLABORATOR, asignación, restricción por `HourAssignment`, bloqueo, tiempo real, navegación financiera y viewport móvil sin overflow.
+- La suite E2E global terminó con 25 casos aprobados y 5 fallidos. Los 2 casos de Tareas Operativas pasaron también dentro de la corrida global.
+- Los 5 fallos se reprodujeron en serie y corresponden a pruebas preexistentes: `hours-auth` exporta un rango fijo del 27/09/2026 aunque la carga usa la fecha actual; dos casos de `income-modal` dependen de índices/opciones de `select` que ya no coinciden con la UI; `shared-folder` espera un segundo elemento `code` que no se renderiza; y `smoke` no encuentra el ingreso creado con su flujo actual.
+- Se verificó con test de integración que dos proyectos llamados `Proyecto igual`, pertenecientes a clientes distintos, permanecen inequívocos por la relación `project.client`; la UI siempre presenta `Cliente · Proyecto`.
+- El servidor se levantó contra la base local de test. Para Auth.js se reutilizó `SESSION_SECRET` como `AUTH_SECRET` en el proceso local; no se creó ni imprimió ningún secreto.
+- Verificación de navegador real: login cargó sin errores de consola; los recorridos de tareas se validaron luego con Playwright sobre `http://localhost:3299`.
+- No se ejecutaron DDL ni migraciones contra producción, ni se hizo deploy.

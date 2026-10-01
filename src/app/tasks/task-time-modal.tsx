@@ -26,16 +26,17 @@ export function TaskTimeModal({
   const [operationId, setOperationId] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const taskId = task?.id ?? null;
 
   useEffect(() => {
-    if (!task) return;
+    if (!taskId) return;
     setWorkDate(today);
     setHours("");
     setMinutes("");
     setDetail("");
     setError(null);
     setOperationId(crypto.randomUUID());
-  }, [task?.id, today]);
+  }, [taskId, today]);
 
   if (!task) return null;
   const totalMinutes = (Number(hours) || 0) * 60 + (Number(minutes) || 0);

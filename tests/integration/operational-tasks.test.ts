@@ -16,8 +16,10 @@ let admin: CurrentUser;
 let collaboratorA: CurrentUser;
 let collaboratorB: CurrentUser;
 let clientId = "";
+let otherClientId = "";
 let projectAId = "";
 let projectBId = "";
+let otherClientProjectId = "";
 
 suite("Tareas Operativas — dominio y seguridad", () => {
   beforeAll(async () => {
@@ -30,22 +32,28 @@ suite("Tareas Operativas — dominio y seguridad", () => {
     collaboratorA = { ...collaboratorARow, role: "COLLABORATOR" };
     collaboratorB = { ...collaboratorBRow, role: "COLLABORATOR" };
 
-    const client = await prisma.client.create({ data: { name: `Task Client ${suffix}` } });
+    const [client, otherClient] = await Promise.all([
+      prisma.client.create({ data: { name: `Task Client ${suffix}` } }),
+      prisma.client.create({ data: { name: `Other Task Client ${suffix}` } }),
+    ]);
     clientId = client.id;
-    const [projectA, projectB] = await Promise.all([
+    otherClientId = otherClient.id;
+    const [projectA, projectB, otherClientProject] = await Promise.all([
       prisma.project.create({ data: { clientId, name: "Proyecto igual" } }),
       prisma.project.create({ data: { clientId, name: "Proyecto B" } }),
+      prisma.project.create({ data: { clientId: otherClientId, name: "Proyecto igual" } }),
     ]);
     projectAId = projectA.id;
     projectBId = projectB.id;
+    otherClientProjectId = otherClientProject.id;
     await prisma.hourAssignment.create({ data: { userId: collaboratorA.id, projectId: projectAId } });
   });
 
   afterAll(async () => {
     await prisma.operationalTask.deleteMany({ where: { creatorId: { in: [admin.id, collaboratorA.id, collaboratorB.id] } } });
     await prisma.hourAssignment.deleteMany({ where: { userId: { in: [collaboratorA.id, collaboratorB.id] } } });
-    await prisma.project.deleteMany({ where: { id: { in: [projectAId, projectBId] } } });
-    await prisma.client.deleteMany({ where: { id: clientId } });
+    await prisma.project.deleteMany({ where: { id: { in: [projectAId, projectBId, otherClientProjectId] } } });
+    await prisma.client.deleteMany({ where: { id: { in: [clientId, otherClientId] } } });
     await prisma.appUser.deleteMany({ where: { id: { in: [admin.id, collaboratorA.id, collaboratorB.id] } } });
   });
 
@@ -68,6 +76,13 @@ suite("Tareas Operativas — dominio y seguridad", () => {
     expect(options.map((project) => project.id)).not.toContain(projectBId);
     await expect(createOperationalTask(collaboratorA, { title: "Fuera de scope", projectId: projectBId }))
       .rejects.toThrow("autorización");
+  });
+
+  it("mantiene inequívocos proyectos con el mismo nombre mediante su cliente", async () => {
+    const options = await listOperationalTaskProjectOptions(admin);
+    const sameNameProjects = options.filter((project) => project.name === "Proyecto igual");
+    expect(sameNameProjects).toHaveLength(2);
+    expect(new Set(sameNameProjects.map((project) => project.client.name)).size).toBe(2);
   });
 
   it("permite a ADMIN crear y reasignar para usuarios activos", async () => {
