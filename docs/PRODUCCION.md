@@ -143,6 +143,24 @@ compatible con Prisma Postgres directo. Requiere simultáneamente:
 - tablas históricas esperadas;
 - estado de esquema reconocido.
 
+## Runner controlado Tareas Operativas
+
+El runner `scripts/migrate-operational-tasks-production.ts` sigue las mismas
+protecciones de destino que Auth/Tiempos: exige `ALLOW_PRODUCTION_MIGRATION=true`
+y `DIRECT_URL` directa validada. Su DDL versionado está en
+`prisma/migrations/20261001090000_add_operational_tasks/migration.sql`.
+
+Antes de ejecutarlo se requiere backup e inventario PRE. El runner reconoce
+únicamente estado no aplicado, completo o parcial; un estado parcial aborta sin
+intentar reparaciones. Después de una aplicación exitosa, una segunda ejecución
+debe responder `PRECHECK_COMPLETE` y `MIGRATION_SKIPPED`.
+
+```bash
+ALLOW_PRODUCTION_MIGRATION=true pnpm prod:migrate:operational-tasks
+```
+
+Este comando no se ejecuta automáticamente durante build o deploy.
+
 Nunca imprime URL, secretos ni DDL sensible. Sus estados son:
 
 | Estado | Acción |
