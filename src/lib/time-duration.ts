@@ -1,4 +1,4 @@
-function parseWholeNumber(value: FormDataEntryValue | null, field: "hours" | "minutes") {
+function parseWholeNumber(value: unknown, field: "hours" | "minutes") {
   const normalized = String(value ?? "").trim();
   if (!normalized) return 0;
   const label = field === "hours" ? "Las horas" : "Los minutos";
@@ -6,7 +6,8 @@ function parseWholeNumber(value: FormDataEntryValue | null, field: "hours" | "mi
   return Number(normalized);
 }
 
-export function parseTimeDurationFields(rawHours: FormDataEntryValue | null, rawMinutes: FormDataEntryValue | null): number {
+/** Shared validation for human forms and structured MCP duration input. */
+export function parseTimeDurationFields(rawHours: unknown, rawMinutes: unknown): number {
   const hours = parseWholeNumber(rawHours, "hours");
   const minutes = parseWholeNumber(rawMinutes, "minutes");
   if (hours > 24) throw new Error("Las horas deben estar entre 0 y 24.");

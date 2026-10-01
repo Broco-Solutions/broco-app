@@ -72,7 +72,7 @@ function classifyJwtError(error: unknown): AuthDiagnostic["errorCode"] {
   return "INTERNAL_AUTH_ERROR";
 }
 
-/** Verifies an Auth0 access token and applies the application allowlist. */
+/** Verifies the external OAuth token. Broco authorization happens per tool. */
 export function makeTokenVerifier(
   config: AuthConfig,
   getKey: JWTVerifyGetKey = createRemoteJWKSet(getJwksUrl(config.issuer)),
@@ -105,17 +105,13 @@ export function makeTokenVerifier(
         typeof emailValue === "string" ? emailValue.trim().toLowerCase() : "";
       const emailVerified = payload[config.emailVerifiedClaim] === true;
 
-      const subjectAllowed = config.allowedSubjects.has(subject);
-      const emailAllowed =
-        emailVerified && email.length > 0 && config.allowedEmails.has(email);
-      const allowed = subjectAllowed || emailAllowed;
       const scopes = parseScopes(payload as Record<string, unknown>);
       const baseDiagnostic = {
         authorizationPresent: true,
         tokenVerified: true,
         scopes,
         hasSub: subject.length > 0,
-        subjectAllowed: allowed,
+        subjectAllowed: Boolean(subject),
       } satisfies AuthDiagnostic;
       if (!subject.length) {
         authDiagnostics.set(request, {
@@ -125,15 +121,6 @@ export function makeTokenVerifier(
         });
         return undefined;
       }
-      if (!allowed) {
-        authDiagnostics.set(request, {
-          ...baseDiagnostic,
-          tokenVerified: false,
-          errorCode: "SUBJECT_NOT_ALLOWED",
-        });
-        return undefined;
-      }
-
       authDiagnostics.set(request, baseDiagnostic);
 
       const clientId =
@@ -148,7 +135,12 @@ export function makeTokenVerifier(
         clientId,
         scopes,
         expiresAt: payload.exp,
-        extra: { sub: subject, email: email || undefined },
+        extra: {
+          sub: subject,
+          provider: config.issuer,
+          email: email || undefined,
+          emailVerified,
+        },
       };
     } catch (error) {
       authDiagnostics.set(request, {

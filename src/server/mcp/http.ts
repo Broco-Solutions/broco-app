@@ -165,8 +165,6 @@ function verifierKey(config: AuthConfig) {
   return JSON.stringify({
     issuer: config.issuer,
     audience: config.audience,
-    subjects: [...config.allowedSubjects].sort(),
-    emails: [...config.allowedEmails].sort(),
     emailClaim: config.emailClaim,
     emailVerifiedClaim: config.emailVerifiedClaim,
   });

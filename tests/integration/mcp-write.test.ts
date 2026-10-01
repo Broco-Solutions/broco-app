@@ -6,9 +6,9 @@ import type { EnabledMcpConfig } from "@/lib/mcp/config";
 
 const enabled: EnabledMcpConfig = {
   status: "ok", writeEnabled: true, resourceUrl: "https://broco.test/api/mcp", requiredScope: "mcp:read",
-  auth: { issuer: "https://issuer.test/", audience: "https://broco.test/api/mcp", allowedSubjects: new Set(["test|writer"]), allowedEmails: new Set(), emailClaim: "email", emailVerifiedClaim: "email_verified" },
+  auth: { issuer: "https://issuer.test/", audience: "https://broco.test/api/mcp", emailClaim: "email", emailVerifiedClaim: "email_verified" },
 };
-const auth: AuthInfo = { token: "test", clientId: "test", scopes: ["mcp:read", "mcp:write"], expiresAt: Math.floor(Date.now() / 1000) + 60, extra: { sub: "test|writer" } };
+const auth: AuthInfo = { token: "test", clientId: "test", scopes: ["mcp:read", "mcp:write"], expiresAt: Math.floor(Date.now() / 1000) + 60, extra: { provider: "https://issuer.test/", sub: "test|writer" } };
 const hasDb = Boolean(process.env.DATABASE_URL && process.env.DATABASE_URL_TEST);
 const run = createMcpHttpHandler({ readConfig: () => enabled, protocolHandler: createMcpProtocolHandler(true), tokenVerifier: () => async () => auth });
 let clientId = "";
@@ -16,6 +16,7 @@ let projectId = "";
 let projectTwoId = "";
 let incomeTypeId = "";
 let categoryId = "";
+let mcpAdminId = "";
 
 async function payload(response: Response) {
   const text = await response.text();
@@ -35,6 +36,9 @@ async function call(name: string, args: Record<string, unknown>, scopes = auth.s
 describe.skipIf(!hasDb)("MCP escritura contra PostgreSQL de test", () => {
   beforeAll(async () => {
     const suffix = `${Date.now()}`;
+    const admin = await prisma.appUser.create({ data: { name: `mcp-write-admin-${suffix}`, email: `mcp-write-${suffix}@test.local`, passwordHash: "test", role: "ADMIN", isActive: true } });
+    mcpAdminId = admin.id;
+    await prisma.mcpIdentity.create({ data: { provider: "https://issuer.test/", subject: "test|writer", appUserId: admin.id } });
     const client = await prisma.client.create({ data: { name: `mcp-write-client-${suffix}` } }); clientId = client.id;
     const project = await prisma.project.create({ data: { clientId, name: `mcp-write-project-${suffix}` } }); projectId = project.id;
     const projectTwo = await prisma.project.create({ data: { clientId, name: `mcp-write-project-two-${suffix}` } }); projectTwoId = projectTwo.id;
@@ -49,6 +53,10 @@ describe.skipIf(!hasDb)("MCP escritura contra PostgreSQL de test", () => {
       if (categoryId) await prisma.expenseCategory.deleteMany({ where: { id: categoryId } });
       await prisma.project.deleteMany({ where: { id: { in: [projectId, projectTwoId] } } });
       await prisma.client.deleteMany({ where: { id: clientId } });
+    }
+    if (mcpAdminId) {
+      await prisma.mcpIdentity.deleteMany({ where: { appUserId: mcpAdminId } });
+      await prisma.appUser.deleteMany({ where: { id: mcpAdminId } });
     }
     await prisma.$disconnect();
   });

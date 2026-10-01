@@ -30,8 +30,6 @@ const testMcpConfig: EnabledMcpConfig = {
   auth: {
     issuer: "https://issuer.test/",
     audience: "https://broco.test/api/mcp",
-    allowedSubjects: new Set(["test|allowed"]),
-    allowedEmails: new Set(),
     emailClaim: "email",
     emailVerifiedClaim: "email_verified",
   },
@@ -42,6 +40,7 @@ const testAuth: AuthInfo = {
   clientId: "integration-test-client",
   scopes: ["mcp:read"],
   expiresAt: Math.floor(Date.now() / 1000) + 60,
+  extra: { provider: "https://issuer.test/", sub: "test|allowed" },
 };
 
 async function readJsonRpcPayload(response: Response) {
@@ -62,6 +61,8 @@ describe.skipIf(!hasTestDatabase)("MCP solo lectura contra PostgreSQL de test", 
 
   beforeAll(async () => {
     assertReadOnlyTestDatabase();
+    const user = await prisma.appUser.create({ data: { name: "MCP Read Admin", email: `mcp-read-${Date.now()}@test.local`, passwordHash: "test", role: "ADMIN", isActive: true } });
+    await prisma.mcpIdentity.create({ data: { provider: "https://issuer.test/", subject: "test|allowed", appUserId: user.id } });
     beforeCounts = await Promise.all([
       prisma.client.count(),
       prisma.project.count(),
@@ -80,6 +81,8 @@ describe.skipIf(!hasTestDatabase)("MCP solo lectura contra PostgreSQL de test", 
       await prisma.$disconnect();
       return;
     }
+    await prisma.mcpIdentity.deleteMany({ where: { provider: "https://issuer.test/", subject: "test|allowed" } });
+    await prisma.appUser.deleteMany({ where: { name: "MCP Read Admin" } });
     const afterCounts = await Promise.all([
       prisma.client.count(),
       prisma.project.count(),

@@ -19,8 +19,6 @@ const enabled: EnabledMcpConfig = {
   auth: {
     issuer: "https://example.auth0.com/",
     audience: "https://broco.example/api/mcp",
-    allowedSubjects: new Set(["auth0|allowed"]),
-    allowedEmails: new Set(),
     emailClaim: "email",
     emailVerifiedClaim: "email_verified",
   },

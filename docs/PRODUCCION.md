@@ -161,6 +161,22 @@ ALLOW_PRODUCTION_MIGRATION=true pnpm prod:migrate:operational-tasks
 
 Este comando no se ejecuta automáticamente durante build o deploy.
 
+## Runner controlado MCP Identity
+
+La identidad persistente MCP se aplica de manera aditiva mediante
+`scripts/migrate-mcp-identities-production.ts`. Requiere el mismo backup,
+inventario PRE/POST, `DIRECT_URL` y `ALLOW_PRODUCTION_MIGRATION=true` que los
+runners anteriores. El DDL versionado está en
+`prisma/migrations/20261002090000_add_mcp_identities/migration.sql` y sólo
+crea `mcp_identities`, sus índices únicos y FK hacia `app_users`.
+
+```bash
+ALLOW_PRODUCTION_MIGRATION=true pnpm prod:migrate:mcp-identities
+```
+
+Ejecutarlo una segunda vez debe informar `PRECHECK_COMPLETE` y
+`MIGRATION_SKIPPED`. Un estado parcial aborta; no se repara manualmente.
+
 Después de completar y verificar el runner base, el vínculo nullable con
 `time_entries` se aplica con un segundo runner aditivo:
 

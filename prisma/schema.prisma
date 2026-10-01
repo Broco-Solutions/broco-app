@@ -95,11 +95,29 @@ model AppUser {
   modifiedEntries     TimeEntry[]       @relation("time_entry_modifier")
   auditEvents         TimeEntryAudit[]  @relation("audit_actor")
   accessTokens        AccessToken[]
+  mcpIdentity         McpIdentity?
   createdOperationalTasks  OperationalTask[] @relation("operational_task_creator")
   assignedOperationalTasks OperationalTask[] @relation("operational_task_assignee")
 
   @@index([role, isActive])
   @@map("app_users")
+}
+
+// Maps a verified external MCP OAuth identity to exactly one Broco user. The
+// external subject is the stable authority; email is only a one-time linking
+// signal and retained as an audit snapshot.
+model McpIdentity {
+  id            String   @id @default(uuid()) @db.Uuid
+  provider      String
+  subject       String
+  appUserId     String   @unique @map("app_user_id") @db.Uuid
+  emailSnapshot String?  @map("email_snapshot")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  appUser       AppUser  @relation(fields: [appUserId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, subject])
+  @@map("mcp_identities")
 }
 
 model AccessToken {

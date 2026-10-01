@@ -12,8 +12,6 @@ export const MCP_METADATA_PATH = "/.well-known/oauth-protected-resource";
 export type AuthConfig = {
   issuer: string;
   audience: string;
-  allowedSubjects: ReadonlySet<string>;
-  allowedEmails: ReadonlySet<string>;
   emailClaim: string;
   emailVerifiedClaim: string;
 };
@@ -64,15 +62,6 @@ function parseHttpsUrl(raw: string | undefined, kind: "issuer" | "resource") {
   }
 }
 
-function parseList(raw: string | undefined, normalize?: (value: string) => string) {
-  const values = (raw ?? "")
-    .split(",")
-    .map((value) => value.trim())
-    .filter(Boolean)
-    .map((value) => normalize?.(value) ?? value);
-  return new Set(values);
-}
-
 /**
  * Reads MCP configuration for every request. Within a running deployment the
  * kill switch is evaluated on every request, but Vercel applies changed
@@ -92,11 +81,6 @@ export function readMcpConfig(): McpConfig {
     "resource",
   );
   const audience = process.env.BROCO_MCP_AUTH0_AUDIENCE?.trim();
-  const allowedSubjects = parseList(process.env.BROCO_MCP_ALLOWED_SUBJECTS);
-  const allowedEmails = parseList(
-    process.env.BROCO_MCP_ALLOWED_EMAILS,
-    (value) => value.toLowerCase(),
-  );
   const emailClaim = claimNameSchema.safeParse(
     process.env.BROCO_MCP_AUTH0_EMAIL_CLAIM?.trim() || "email",
   );
@@ -114,9 +98,6 @@ export function readMcpConfig(): McpConfig {
   if (!audience || audience !== resourceUrl) {
     return { status: "misconfigured", reason: "audience_resource_mismatch" };
   }
-  if (allowedSubjects.size === 0 && allowedEmails.size === 0) {
-    return { status: "misconfigured", reason: "empty_allowlist" };
-  }
   if (!emailClaim.success || !emailVerifiedClaim.success) {
     return { status: "misconfigured", reason: "invalid_email_claim" };
   }
@@ -126,8 +107,6 @@ export function readMcpConfig(): McpConfig {
     auth: {
       issuer,
       audience,
-      allowedSubjects,
-      allowedEmails,
       emailClaim: emailClaim.data,
       emailVerifiedClaim: emailVerifiedClaim.data,
     },

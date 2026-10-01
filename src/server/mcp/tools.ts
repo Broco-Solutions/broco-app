@@ -34,6 +34,8 @@ import {
   listProjectsForMcp,
 } from "@/server/services/projects";
 import { registerWriteTools, WRITE_MCP_TOOL_NAMES } from "@/server/mcp/write-tools";
+import { mcpErrorResult, requireMcpAdmin } from "@/server/mcp/identity";
+import { registerOperationalTools, OPERATIONAL_MCP_READ_TOOL_NAMES } from "@/server/mcp/operational-tools";
 
 export const MCP_TOOL_NAMES = [
   "resumen_financiero",
@@ -45,6 +47,7 @@ export const MCP_TOOL_NAMES = [
   "consultar_gastos",
   "planificacion_proyecto",
   "resumen_proyectos",
+  ...OPERATIONAL_MCP_READ_TOOL_NAMES,
 ] as const;
 
 export const MCP_TOOL_SECURITY_SCHEMES = [
@@ -895,6 +898,15 @@ export function registerTools(
   services: McpReadServices = defaultServices,
   options: { writeEnabled?: boolean } = {},
 ) {
+  const adminRead = <T>(fn: (input: T) => Promise<Record<string, unknown>>) =>
+    async (input: T, ctx: Parameters<typeof requireMcpAdmin>[0]) => {
+      try {
+        await requireMcpAdmin(ctx);
+        return result(await fn(input));
+      } catch (error) {
+        return mcpErrorResult(error);
+      }
+    };
   server.registerTool(
     "resumen_financiero",
     {
@@ -905,7 +917,7 @@ export function registerTools(
       outputSchema: financialSummaryOutputSchema,
       ...toolMetadata,
     },
-    async (input) => result(await getFinancialSummary(input, services)),
+    adminRead((input) => getFinancialSummary(input, services)),
   );
 
   server.registerTool(
@@ -918,7 +930,7 @@ export function registerTools(
       outputSchema: clientsOutputSchema,
       ...toolMetadata,
     },
-    async (input) => result(await getClients(input, services)),
+    adminRead((input) => getClients(input, services)),
   );
 
   server.registerTool(
@@ -931,7 +943,7 @@ export function registerTools(
       outputSchema: projectsOutputSchema,
       ...toolMetadata,
     },
-    async (input) => result(await getProjects(input, services)),
+    adminRead((input) => getProjects(input, services)),
   );
 
   server.registerTool(
@@ -944,7 +956,7 @@ export function registerTools(
       outputSchema: cashFlowOutputSchema,
       ...toolMetadata,
     },
-    async (input) => result(await getCashFlow(input, services)),
+    adminRead((input) => getCashFlow(input, services)),
   );
 
   server.registerTool(
@@ -957,7 +969,7 @@ export function registerTools(
       outputSchema: projectDetailOutputSchema,
       ...toolMetadata,
     },
-    async (input) => result(await getProjectDetail(input, services)),
+    adminRead((input) => getProjectDetail(input, services)),
   );
 
   server.registerTool(
@@ -970,7 +982,7 @@ export function registerTools(
       outputSchema: incomesOutputSchema,
       ...toolMetadata,
     },
-    async (input) => result(await getIncomes(input, services)),
+    adminRead((input) => getIncomes(input, services)),
   );
 
   server.registerTool(
@@ -983,7 +995,7 @@ export function registerTools(
       outputSchema: expensesOutputSchema,
       ...toolMetadata,
     },
-    async (input) => result(await getExpenses(input, services)),
+    adminRead((input) => getExpenses(input, services)),
   );
 
   server.registerTool(
@@ -996,7 +1008,7 @@ export function registerTools(
       outputSchema: projectPlanningOutputSchema,
       ...toolMetadata,
     },
-    async (input) => result(await getProjectPlanning(input, services)),
+    adminRead((input) => getProjectPlanning(input, services)),
   );
 
   server.registerTool(
@@ -1009,8 +1021,9 @@ export function registerTools(
       outputSchema: projectSummariesOutputSchema,
       ...toolMetadata,
     },
-    async (input) => result(await getProjectSummaries(input, services)),
+    adminRead((input) => getProjectSummaries(input, services)),
   );
 
+  registerOperationalTools(server, { writeEnabled: options.writeEnabled });
   if (options.writeEnabled) registerWriteTools(server);
 }

@@ -17,8 +17,6 @@ let publicKey: CryptoKey;
 const config: AuthConfig = {
   issuer: ISSUER,
   audience: AUDIENCE,
-  allowedSubjects: new Set(["auth0|allowed"]),
-  allowedEmails: new Set(["allowed@example.com"]),
   emailClaim: "https://broco.example/email",
   emailVerifiedClaim: "https://broco.example/email_verified",
 };
@@ -52,7 +50,7 @@ function verifier(key: CryptoKey = publicKey) {
 }
 
 describe("JWT Auth0 para MCP", () => {
-  it("acepta firma, issuer, audience, expiración, scope y subject permitidos", async () => {
+  it("acepta firma, issuer, audience, expiración, scope y subject", async () => {
     const token = await sign({ permissions: ["extra:read"] });
     const auth = await verifier()(new Request(AUDIENCE), token);
     expect(auth).toMatchObject({
@@ -79,19 +77,21 @@ describe("JWT Auth0 para MCP", () => {
     expect(JSON.stringify(getAuthDiagnostic(request))).not.toContain(token);
   });
 
-  it("clasifica token ausente y subject no permitido", async () => {
+  it("clasifica token ausente y conserva un subject externo válido", async () => {
     const missingRequest = new Request(AUDIENCE);
     expect(await verifier()(missingRequest)).toBeUndefined();
     expect(getAuthDiagnostic(missingRequest)?.errorCode).toBe("MISSING_TOKEN");
 
     const outsiderRequest = new Request(AUDIENCE);
     const outsider = await sign({ sub: "auth0|outsider" });
-    expect(await verifier()(outsiderRequest, outsider)).toBeUndefined();
+    expect(await verifier()(outsiderRequest, outsider)).toMatchObject({
+      token: outsider,
+      extra: { sub: "auth0|outsider", provider: ISSUER },
+    });
     expect(getAuthDiagnostic(outsiderRequest)).toMatchObject({
-      tokenVerified: false,
+      tokenVerified: true,
       hasSub: true,
-      subjectAllowed: false,
-      errorCode: "SUBJECT_NOT_ALLOWED",
+      subjectAllowed: true,
     });
   });
 
@@ -105,12 +105,7 @@ describe("JWT Auth0 para MCP", () => {
     expect(await verifier()(new Request(AUDIENCE), token)).toBeUndefined();
   });
 
-  it("rechaza usuario fuera de ambas allowlists", async () => {
-    const token = await sign({ sub: "auth0|outsider" });
-    expect(await verifier()(new Request(AUDIENCE), token)).toBeUndefined();
-  });
-
-  it("solo acepta email permitido cuando el claim de verificación es verdadero", async () => {
+  it("transporta email sólo como señal de enlace y conserva su verificación", async () => {
     const emailClaim = config.emailClaim;
     const verifiedClaim = config.emailVerifiedClaim;
     const unverified = await sign({
@@ -118,16 +113,18 @@ describe("JWT Auth0 para MCP", () => {
       [emailClaim]: "ALLOWED@EXAMPLE.COM",
       [verifiedClaim]: false,
     });
-    expect(await verifier()(new Request(AUDIENCE), unverified)).toBeUndefined();
+    expect(await verifier()(new Request(AUDIENCE), unverified)).toMatchObject({
+      extra: { email: "allowed@example.com", emailVerified: false },
+    });
 
     const stringVerified = await sign({
       sub: "auth0|email-user",
       [emailClaim]: "allowed@example.com",
       [verifiedClaim]: "true",
     });
-    expect(
-      await verifier()(new Request(AUDIENCE), stringVerified),
-    ).toBeUndefined();
+    expect(await verifier()(new Request(AUDIENCE), stringVerified)).toMatchObject({
+      extra: { emailVerified: false },
+    });
 
     const verified = await sign({
       sub: "auth0|email-user",
@@ -135,7 +132,7 @@ describe("JWT Auth0 para MCP", () => {
       [verifiedClaim]: true,
     });
     expect(await verifier()(new Request(AUDIENCE), verified)).toMatchObject({
-      extra: { sub: "auth0|email-user", email: "allowed@example.com" },
+      extra: { sub: "auth0|email-user", email: "allowed@example.com", emailVerified: true },
     });
   });
 });

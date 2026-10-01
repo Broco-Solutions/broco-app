@@ -73,7 +73,7 @@ ChatGPT ── OAuth Authorization Code + PKCE ──> Auth0
    └── Bearer JWT ──> Vercel /api/mcp ──> consultas Prisma acotadas
 ```
 
-El endpoint publica RFC 9728 Protected Resource Metadata en `/.well-known/oauth-protected-resource`. Cada request requiere un JWT Auth0 RS256 válido según JWKS, `iss`, `aud`, `exp`/`nbf` y el scope `mcp:read`. Una segunda barrera aplica una allowlist propia por `sub` o email verificado: una cuenta válida del tenant no da acceso automáticamente.
+El endpoint publica RFC 9728 Protected Resource Metadata en `/.well-known/oauth-protected-resource`. Cada request requiere un JWT Auth0 RS256 válido según JWKS, `iss`, `aud`, `exp`/`nbf` y el scope `mcp:read`. Una cuenta válida del tenant puede conectar, pero no recibe acceso operativo hasta que Broco resuelva un `McpIdentity` hacia un `AppUser` activo y aplique su rol actual en cada tool.
 
 Fuentes actuales:
 
@@ -112,8 +112,6 @@ BROCO_MCP_KILL=true
 BROCO_MCP_AUTH0_ISSUER=https://TENANT_REGION.auth0.com/
 BROCO_MCP_RESOURCE_URL=https://APP_DOMAIN/api/mcp
 BROCO_MCP_AUTH0_AUDIENCE=https://APP_DOMAIN/api/mcp
-BROCO_MCP_ALLOWED_SUBJECTS=AUTH0_SUB_1,AUTH0_SUB_2
-BROCO_MCP_ALLOWED_EMAILS=
 BROCO_MCP_AUTH0_EMAIL_CLAIM=https://APP_DOMAIN/claims/email
 BROCO_MCP_AUTH0_EMAIL_VERIFIED_CLAIM=https://APP_DOMAIN/claims/email_verified
 ```
@@ -140,11 +138,11 @@ Los nombres exactos de las pantallas pueden variar. Antes de habilitar producci�
 
 4. **Limitar grants y scopes.** Autorizar a ese cliente solo para la API MCP y `mcp:read`. No conceder scopes de escritura ni Management API. Confirmar que el token emitido tenga `iss` igual al issuer del tenant, `aud` igual a la URL MCP y `scope` o `permissions` con `mcp:read`.
 
-5. **Configurar la allowlist.** La opción preferida es copiar el claim inmutable `sub` de cada usuario autorizado a `BROCO_MCP_ALLOWED_SUBJECTS`. Si se necesita autorizar por email, agregar con una Auth0 Post Login Action dos claims personalizados y namespaced: email y email verificado. Configurar esos nombres en las variables correspondientes. El servidor ignora el email cuando su claim de verificación no es verdadero.
+5. **Configurar claims de identidad.** El token debe incluir `sub` estable. Para el primer vínculo automático opcional, agregar claims personalizados y namespaced de email y email verificado; Broco sólo vincula si coincide exactamente con un `AppUser` activo. OAuth permite conectar, pero no otorga datos: cada tool resuelve el vínculo persistente y el rol actual de Broco.
 
 6. **Configurar issuer y conector.** Copiar el `issuer` de discovery de Auth0, con HTTPS y slash final, a `BROCO_MCP_AUTH0_ISSUER`. En ChatGPT, registrar `https://APP_DOMAIN/api/mcp` y verificar que el consentimiento solicite solo `mcp:read`. No copiar tokens ni secretos al repositorio.
 
-La escritura MCP permanece desactivada salvo que `BROCO_MCP_WRITE_ENABLED=true` esté presente en el deployment. Con el flag apagado sólo se registran las nueve herramientas de lectura. Las herramientas de escritura exigen además el scope `mcp:write`; no habilitar el flag hasta validar el consentimiento y los controles de confirmación en el cliente MCP.
+La escritura MCP permanece desactivada salvo que `BROCO_MCP_WRITE_ENABLED=true` esté presente en el deployment. Las herramientas de escritura exigen además el scope `mcp:write`; ese scope nunca sustituye la autorización interna por rol y ownership.
 
 Si el tenant gratuito no ofrece CIMD, detener la habilitación y revisar el plan o registrar el cliente público manualmente con los mismos metadatos y el redirect que muestre ChatGPT para esa conexión. No sustituir este flujo por la cookie web, `APP_PASSWORD`, una API key compartida ni credenciales existentes.
 
