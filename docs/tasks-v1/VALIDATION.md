@@ -99,3 +99,10 @@ Nota: `pnpm test:db:up` informó conflicto porque el contenedor canónico ya est
 - `prod:migrate:operational-task-time`: primera ejecución `MIGRATION_COMPLETED`; segunda ejecución `MIGRATION_SKIPPED`.
 - El inventario POST quedó en `/home/rcoirini/backups/broco/broco-post-operational-tasks-20261001-183039.inventory.json` (SHA-256 `a7672721f9cd717c528596b1fa1bf3ac465a20cbfdb2fc676fd0cf80ef379035`). `prod:inventory:compare` confirmó `INVENTORY_MATCH`: se preservaron los conteos y las huellas históricas.
 - Los runners validaron sus postcondiciones: `OperationalTask`, su enum, relaciones e índices; y la FK/índice nullable de `TimeEntry.operationalTaskId`. No se requirió backup POST: el antecedente productivo versionado contempla el dump verificable PRE.
+
+## Publicación productiva
+
+- `main` se integró por fast-forward desde `00f23546c2af58102df9d4c2c64784952efd5af2` hasta `710048c7d23895cc620c8c331d4256f0fa2181b5` y se publicó en `origin/main`.
+- La validación sobre `main` pasó: `pnpm test` (50 archivos, 472 tests), lint, typecheck, build y `git diff --check`.
+- Vercel publicó el deployment de producción `dpl_GU4vNPwRNwJLZADqEc1ZYELuF4yG` para `710048c7d23895cc620c8c331d4256f0fa2181b5`, estado `READY`, URL `https://app.brocosolutions.com`.
+- Smoke no autenticado: la pantalla de login productiva respondió correctamente. No se completó el smoke autenticado: la credencial local disponible no fue aceptada por la identidad productiva y no se intentaron credenciales alternativas ni se crearon datos de prueba.
