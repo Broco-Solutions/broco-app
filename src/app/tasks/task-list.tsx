@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertCircle, CheckCircle2, Circle, Clock3, PlayCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
@@ -123,6 +123,7 @@ export function TaskList({
     setEditingTask(task);
     setFormOpen(true);
   };
+  const closeDetail = useCallback(() => setSelectedId(null), []);
 
   return (
     <div className="space-y-4">
@@ -151,6 +152,14 @@ export function TaskList({
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
           <p className="text-xs text-gray-500">{filtered.length} de {tasks.length} tareas · seleccioná una fila para abrir el detalle</p>
           <div className="flex gap-2">
+            <Select value={sort} onChange={(event) => setSort(event.target.value as OperationalTaskClientSort)} aria-label="Orden" className="w-auto text-xs">
+              <option value="auto">Orden recomendado</option>
+              <option value="due-asc">Vencimiento próximo</option><option value="due-desc">Vencimiento lejano</option>
+              <option value="created-desc">Creación reciente</option><option value="created-asc">Creación antigua</option>
+              <option value="updated-desc">Actualización reciente</option><option value="updated-asc">Actualización antigua</option>
+              <option value="status-asc">Estado</option>
+              {isAdmin ? <option value="assignee-asc">Responsable A–Z</option> : null}
+            </Select>
             <Button type="button" variant="ghost" className="text-xs" onClick={() => { setSearch(""); setStatus("OPEN"); setDue("ALL"); setClientId(""); setProjectId(""); setAssigneeId(""); setSort("auto"); }}>Limpiar filtros</Button>
             <Button type="button" onClick={() => { setEditingTask(null); setFormOpen(true); }}>+ Nueva tarea</Button>
           </div>
@@ -201,7 +210,7 @@ export function TaskList({
         </>
       )}
 
-      <TaskDetailModal task={selectedTask} isAdmin={isAdmin} today={today} onClose={() => setSelectedId(null)} onEdit={() => selectedTask && openEdit(selectedTask)} />
+      <TaskDetailModal task={selectedTask} isAdmin={isAdmin} today={today} onClose={closeDetail} onEdit={() => selectedTask && openEdit(selectedTask)} />
       <TaskFormModal open={formOpen} task={editingTask} isAdmin={isAdmin} actorId={actor.id} projects={allProjects} assignees={assignees} onClose={() => { setFormOpen(false); setEditingTask(null); }} />
     </div>
   );

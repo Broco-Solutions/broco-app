@@ -40,6 +40,10 @@ export function TaskDetailModal({
     setBlockedReason(task.blockedReason ?? "");
     setError(null);
     setCompletionNotice(false);
+  }, [task?.id]);
+
+  useEffect(() => {
+    if (!task) return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
@@ -48,7 +52,7 @@ export function TaskDetailModal({
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, [onClose, task]);
+  }, [onClose, task?.id]);
 
   if (!task) return null;
   const overdue = Boolean(task.dueDate && task.dueDate.slice(0, 10) < today && task.status !== "DONE");
@@ -124,7 +128,8 @@ export function TaskDetailModal({
                       <section className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
                         <p className="font-semibold text-emerald-900">Tarea completada.</p>
                         <p className="mt-1 text-sm text-emerald-800">Podés registrar el tiempo trabajado ahora o hacerlo más tarde.</p>
-                        {task.project ? <p className="mt-3 text-xs text-emerald-800">La carga rápida de tiempo se habilita en el Lote 4.</p> : null}
+                        {task.project ? <p className="mt-3 text-xs text-emerald-800">La carga rápida de tiempo se habilita en la integración con Tiempos.</p> : <p className="mt-3 text-xs text-emerald-800">Esta tarea no tiene proyecto, por eso no admite carga de tiempo.</p>}
+                        <Button type="button" variant="ghost" className="mt-2 px-0 text-xs text-emerald-900" onClick={() => setCompletionNotice(false)}>Ahora no</Button>
                       </section>
                     ) : null}
                   </div>

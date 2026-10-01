@@ -60,7 +60,7 @@ export function TaskFormModal({
       formData.set("title", title);
       formData.set("description", description);
       formData.set("dueDate", dueDate);
-      if (isAdmin) formData.set("assigneeId", assigneeId);
+      if (isAdmin && (!task || assigneeId !== task.assigneeId)) formData.set("assigneeId", assigneeId);
       if (!task || projectId !== (task.projectId ?? "")) formData.set("projectId", projectId);
       if (task) {
         formData.set("id", task.id);

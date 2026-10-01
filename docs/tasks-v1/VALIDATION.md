@@ -25,3 +25,10 @@ Nota: `pnpm test:db:up` informó conflicto porque el contenedor canónico ya est
 - `pnpm exec tsc --noEmit`: pasó.
 - `pnpm exec vitest run tests/unit/operational-task-order.test.ts tests/integration/operational-tasks.test.ts`: 2 archivos, 8 tests, todo pasó.
 - Regresión de orden financiero: pasó junto con la primera verificación de UI compartida.
+
+## Lote 3
+
+- `pnpm exec tsc --noEmit`: pasó.
+- `pnpm exec vitest run tests/integration/operational-tasks.test.ts tests/unit/operational-task-order.test.ts`: 2 archivos, 8 tests, todo pasó.
+- `git diff --check`: pasó.
+- Verificado por test de integración: bloqueo sin motivo rechazado, motivo preservado al reanudar, `completedAt` al completar, limpieza al reabrir y rechazo de edición obsoleta.
