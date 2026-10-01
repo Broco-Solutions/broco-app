@@ -134,5 +134,12 @@ describe("JWT Auth0 para MCP", () => {
     expect(await verifier()(new Request(AUDIENCE), verified)).toMatchObject({
       extra: { sub: "auth0|email-user", email: "allowed@example.com", emailVerified: true },
     });
+    const request = new Request(AUDIENCE);
+    await verifier()(request, verified);
+    expect(getAuthDiagnostic(request)).toMatchObject({
+      hasSub: true,
+      hasEmail: true,
+      emailVerified: true,
+    });
   });
 });

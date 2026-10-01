@@ -12,6 +12,8 @@ export type McpDiagnosticAuth = {
   tokenVerified: boolean;
   scopes: string[];
   hasSub: boolean;
+  hasEmail: boolean;
+  emailVerified: boolean;
   subjectAllowed: boolean;
 };
 
@@ -31,6 +33,8 @@ const emptyAuth = (): McpDiagnosticAuth => ({
   tokenVerified: false,
   scopes: [],
   hasSub: false,
+  hasEmail: false,
+  emailVerified: false,
   subjectAllowed: false,
 });
 
@@ -133,4 +137,17 @@ export function authDiagnosticSnapshot(
     scopes: normalizeDiagnosticScopes(auth.scopes),
   };
   return context.auth;
+}
+
+export function logMcpIdentityDiagnostic(extra: Record<string, unknown>) {
+  if (!isMcpDiagnosticLoggingEnabled()) return;
+
+  console.info(
+    "MCP_DIAG",
+    JSON.stringify({
+      event: "identity_resolution",
+      timestamp: new Date().toISOString(),
+      ...extra,
+    }),
+  );
 }

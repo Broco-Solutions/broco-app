@@ -3,6 +3,7 @@ import "server-only";
 import type { ServerContext } from "@modelcontextprotocol/server";
 import { Prisma, type PrismaClient } from "@prisma/client";
 import type { CurrentUser } from "@/lib/auth";
+import { logMcpIdentityDiagnostic } from "@/lib/mcp/diagnostics";
 import { prisma } from "@/server/prisma";
 
 export const MCP_APP_USER_REQUIRED =
@@ -29,6 +30,14 @@ type IdentityClaims = {
 };
 
 type IdentityClient = Pick<PrismaClient, "mcpIdentity" | "appUser">;
+type IdentityAppUser = {
+  id: string;
+  name: string;
+  email: string;
+  role: "ADMIN" | "COLLABORATOR";
+  isActive: boolean;
+  sessionVersion: number;
+};
 
 function asClaim(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
@@ -59,13 +68,32 @@ function toCurrentUser(user: {
   return user;
 }
 
+function normalizeEmail(email: string | undefined) {
+  return asClaim(email)?.toLowerCase();
+}
+
 async function createVerifiedEmailLink(
   claims: IdentityClaims,
   client: IdentityClient,
-) {
-  if (!claims.email || !claims.emailVerified) return null;
+): Promise<{
+  user: IdentityAppUser | null;
+  attempted: boolean;
+  appUserMatchFound: boolean;
+  appUserActive: boolean;
+  result: "created" | "concurrent_existing" | "blocked";
+}> {
+  const email = normalizeEmail(claims.email);
+  if (!email || !claims.emailVerified) {
+    return {
+      user: null,
+      attempted: false,
+      appUserMatchFound: false,
+      appUserActive: false,
+      result: "blocked",
+    };
+  }
   const user = await client.appUser.findUnique({
-    where: { email: claims.email },
+    where: { email },
     select: {
       id: true,
       name: true,
@@ -75,7 +103,15 @@ async function createVerifiedEmailLink(
       sessionVersion: true,
     },
   });
-  if (!user || !user.isActive) return null;
+  if (!user || !user.isActive) {
+    return {
+      user: null,
+      attempted: true,
+      appUserMatchFound: Boolean(user),
+      appUserActive: Boolean(user?.isActive),
+      result: "blocked",
+    };
+  }
 
   try {
     await client.mcpIdentity.create({
@@ -83,10 +119,16 @@ async function createVerifiedEmailLink(
         provider: claims.provider,
         subject: claims.subject,
         appUserId: user.id,
-        emailSnapshot: claims.email,
+        emailSnapshot: email,
       },
     });
-    return user;
+    return {
+      user,
+      attempted: true,
+      appUserMatchFound: true,
+      appUserActive: true,
+      result: "created",
+    };
   } catch (error) {
     // A concurrent first request or a distinct identity already linked to this
     // AppUser must never silently bind the caller to an arbitrary account.
@@ -113,7 +155,13 @@ async function createVerifiedEmailLink(
         },
       },
     });
-    return linked?.appUser ?? null;
+    return {
+      user: linked?.appUser ?? null,
+      attempted: true,
+      appUserMatchFound: true,
+      appUserActive: Boolean(linked?.appUser?.isActive),
+      result: linked?.appUser ? "concurrent_existing" : "blocked",
+    };
   }
 }
 
@@ -126,6 +174,16 @@ export async function resolveMcpActorFromClaims(
   claims: IdentityClaims,
   client: IdentityClient = prisma,
 ): Promise<CurrentUser> {
+  const normalizedClaims = {
+    ...claims,
+    email: normalizeEmail(claims.email),
+  };
+  let identityFound = false;
+  let appUserMatchFound = false;
+  let appUserActive = false;
+  let autoLinkAttempted = false;
+  let autoLinkResult: "not_needed" | "created" | "concurrent_existing" | "blocked" = "not_needed";
+
   const linked = await client.mcpIdentity.findUnique({
     where: {
       provider_subject: {
@@ -147,7 +205,29 @@ export async function resolveMcpActorFromClaims(
     },
   });
 
-  const user = linked?.appUser ?? (await createVerifiedEmailLink(claims, client));
+  identityFound = Boolean(linked);
+  appUserMatchFound = Boolean(linked?.appUser);
+  appUserActive = Boolean(linked?.appUser?.isActive);
+  const autoLink = linked ? null : await createVerifiedEmailLink(normalizedClaims, client);
+  if (autoLink) {
+    autoLinkAttempted = autoLink.attempted;
+    appUserMatchFound = autoLink.appUserMatchFound;
+    appUserActive = autoLink.appUserActive;
+    autoLinkResult = autoLink.result;
+  }
+
+  const user = linked?.appUser ?? autoLink?.user ?? null;
+  logMcpIdentityDiagnostic({
+    oauth_subject_present: Boolean(normalizedClaims.subject),
+    oauth_email_present: Boolean(normalizedClaims.email),
+    oauth_email_verified: normalizedClaims.emailVerified === true,
+    identity_found: identityFound,
+    app_user_match_found: appUserMatchFound,
+    app_user_active: appUserActive,
+    auto_link_attempted: autoLinkAttempted,
+    auto_link_result: autoLinkResult,
+  });
+
   if (!user) throw new McpAuthorizationError("APP_USER_REQUIRED", MCP_APP_USER_REQUIRED);
   if (!user.isActive) {
     throw new McpAuthorizationError("APP_USER_INACTIVE", MCP_APP_USER_REQUIRED);

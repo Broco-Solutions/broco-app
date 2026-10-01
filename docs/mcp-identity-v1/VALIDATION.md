@@ -16,3 +16,10 @@
 - `main` se integró por fast-forward de `7e3a8c8` a `261d4cc` y se publicó en `origin/main`. En `main`: `pnpm test` 480/480, typecheck, lint, build y `git diff --check` correctos.
 - Vercel publicó `dpl_Enm9Q3Zk3YD651eh5Nr8SYbYypMf` para `261d4cc`, estado `READY`, con alias `https://app.brocosolutions.com`.
 - Smoke no autenticado: login disponible, `/tasks` redirige a login y `/api/mcp` responde `401`. No había credenciales productivas legítimas disponibles para smoke autenticado ADMIN/COLLABORATOR ni OAuth MCP; no se crearon usuarios ni datos de prueba.
+
+## Fix diagnóstico auto-link AppUser
+
+- Producción exponía MCP y autenticaba OAuth, pero las llamadas con usuario fallaban con `APP_USER_REQUIRED`.
+- Vercel Production no tenía configuradas `BROCO_MCP_AUTH0_EMAIL_CLAIM` ni `BROCO_MCP_AUTH0_EMAIL_VERIFIED_CLAIM`; con los defaults (`email`, `email_verified`) el resolver no recibía email verificado para crear el primer `McpIdentity`.
+- Se agregó diagnóstico sanitizado de claims/auto-link y cobertura del primer vínculo exitoso, email no verificado/ausente, AppUser inactivo, cambio de email posterior y vínculo existente como autoridad primaria.
+- Validación local del fix: tests enfocados 30/30, `pnpm test` 482/482, `pnpm exec tsc --noEmit`, `pnpm lint`, `pnpm build` y `git diff --check` correctos.

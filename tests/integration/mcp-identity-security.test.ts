@@ -94,6 +94,49 @@ describe.skipIf(!hasDb)("MCP identidad y autorización", () => {
     expect(errorCode(await call("inactive", "consultar_tiempos", {}))).toBe("APP_USER_INACTIVE");
   });
 
+  it("crea el primer vínculo con email verificado y luego usa provider + subject", async () => {
+    const suffix = crypto.randomUUID();
+    const email = `mcp-autolink-${suffix}@test.local`;
+    const user = await prisma.appUser.create({
+      data: {
+        name: `mcp-autolink-${suffix}`,
+        email,
+        passwordHash: "test",
+        role: "COLLABORATOR",
+        isActive: true,
+      },
+    });
+
+    try {
+      const actor = await resolveMcpActorFromClaims({
+        provider,
+        subject: `autolink-${suffix}`,
+        email: email.toUpperCase(),
+        emailVerified: true,
+      });
+      expect(actor.id).toBe(user.id);
+      await expect(prisma.mcpIdentity.findUniqueOrThrow({
+        where: { provider_subject: { provider, subject: `autolink-${suffix}` } },
+      })).resolves.toMatchObject({ appUserId: user.id, emailSnapshot: email });
+
+      await prisma.appUser.update({ where: { id: user.id }, data: { email: `changed-${email}` } });
+      await expect(resolveMcpActorFromClaims({
+        provider,
+        subject: `autolink-${suffix}`,
+      })).resolves.toMatchObject({ id: user.id });
+    } finally {
+      await prisma.mcpIdentity.deleteMany({ where: { appUserId: user.id } });
+      await prisma.appUser.deleteMany({ where: { id: user.id } });
+    }
+  });
+
+  it("no auto-vincula email ausente, email no verificado ni AppUser inactivo", async () => {
+    const inactive = await prisma.appUser.findUniqueOrThrow({ where: { id: inactiveId } });
+    await expect(resolveMcpActorFromClaims({ provider, subject: "missing-email" })).rejects.toMatchObject({ code: "APP_USER_REQUIRED" });
+    await expect(resolveMcpActorFromClaims({ provider, subject: "unverified-email", email: inactive.email, emailVerified: false })).rejects.toMatchObject({ code: "APP_USER_REQUIRED" });
+    await expect(resolveMcpActorFromClaims({ provider, subject: "inactive-email", email: inactive.email, emailVerified: true })).rejects.toMatchObject({ code: "APP_USER_REQUIRED" });
+  });
+
   it("revalida rol actual sin relink", async () => {
     expect(errorCode(await call("admin", "consultar_ingresos", {}))).toBeUndefined();
     await prisma.appUser.update({ where: { id: adminId }, data: { role: "COLLABORATOR" } });
@@ -149,6 +192,7 @@ describe.skipIf(!hasDb)("MCP identidad y autorización", () => {
 
   it("evita auto-vínculos ambiguos y corta acceso después de desactivar", async () => {
     await expect(resolveMcpActorFromClaims({ provider, subject: "second-subject", email: (await prisma.appUser.findUniqueOrThrow({ where: { id: otherId } })).email, emailVerified: true })).rejects.toMatchObject({ code: "APP_USER_REQUIRED" });
+    await expect(resolveMcpActorFromClaims({ provider, subject: "collaborator", email: (await prisma.appUser.findUniqueOrThrow({ where: { id: otherId } })).email, emailVerified: true })).resolves.toMatchObject({ id: collaboratorId });
     await prisma.appUser.update({ where: { id: collaboratorId }, data: { isActive: false } });
     expect(errorCode(await call("collaborator", "consultar_tiempos", {}))).toBe("APP_USER_INACTIVE");
     await prisma.appUser.update({ where: { id: collaboratorId }, data: { isActive: true } });

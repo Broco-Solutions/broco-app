@@ -35,6 +35,8 @@ export type AuthDiagnostic = {
   tokenVerified: boolean;
   scopes: string[];
   hasSub: boolean;
+  hasEmail: boolean;
+  emailVerified: boolean;
   subjectAllowed: boolean;
   errorCode?:
     | "MISSING_TOKEN"
@@ -84,6 +86,8 @@ export function makeTokenVerifier(
         tokenVerified: false,
         scopes: [],
         hasSub: false,
+        hasEmail: false,
+        emailVerified: false,
         subjectAllowed: false,
         errorCode: "MISSING_TOKEN",
       });
@@ -111,6 +115,8 @@ export function makeTokenVerifier(
         tokenVerified: true,
         scopes,
         hasSub: subject.length > 0,
+        hasEmail: email.length > 0,
+        emailVerified,
         subjectAllowed: Boolean(subject),
       } satisfies AuthDiagnostic;
       if (!subject.length) {
@@ -148,6 +154,8 @@ export function makeTokenVerifier(
         tokenVerified: false,
         scopes: [],
         hasSub: false,
+        hasEmail: false,
+        emailVerified: false,
         subjectAllowed: false,
         errorCode: classifyJwtError(error),
       });

@@ -238,6 +238,8 @@ describe("diagnóstico temporal MCP", () => {
         tokenVerified: true,
         scopes: ["mcp:read", "mcp:write"],
         hasSub: true,
+        hasEmail: false,
+        emailVerified: false,
         subjectAllowed: true,
       },
     });
