@@ -12,12 +12,14 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import { ConfirmActionModal } from "@/components/ui/confirm-action-modal";
 import { BulkActionBar } from "@/components/ui/bulk-action-bar";
 import { ModalPortal } from "@/components/ui/modal-portal";
+import { SortableHeader } from "@/components/ui/sortable-header";
 import { IncomeFormModal } from "./income-form-modal";
 import { PayIncomeModal } from "./pay-income-modal";
 import { saveIncome, removeIncome, payIncome, createIncomeBatch, bulkUpdateIncomes } from "./actions";
 import { saveIncomeType, removeIncomeType } from "./types/actions";
 import { formatUsd, formatArs, formatDate, formatIncomeStatus } from "@/lib/utils";
 import { dateOnlyKey, isDateOnlyInRange, todayKeyArgentina } from "@/lib/dates";
+import { compareFinancialRecords, isFinancialRecordSort, toggleFinancialRecordSort, type FinancialRecordSort, type FinancialRecordSortKey } from "@/lib/financial-record-order";
 
 type TY = { id: string; name: string; requiresProject: boolean };
 
@@ -36,6 +38,7 @@ export function IncomeList({ initialIncomes, projects, clients, incomeTypes }: {
   useEffect(() => { setIncomes(initialIncomes); }, [initialIncomes]);
   const [filter, setFilter] = useState("PAID"); const [typeFilter, setTypeFilter] = useState("");
   const [dateFrom, setDateFrom] = useState(""); const [dateTo, setDateTo] = useState("");
+  const [sort, setSort] = useState<FinancialRecordSort>("auto");
   const [fClient, setFClient] = useState(""); const [fProject, setFProject] = useState("");
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false); const [editing, setEditing] = useState<Income | null>(null);
@@ -87,10 +90,12 @@ export function IncomeList({ initialIncomes, projects, clients, incomeTypes }: {
     setTypeFilter(params.get("typeFilter") ?? "");
     setFClient(params.get("client") ?? "");
     setFProject(params.get("project") ?? "");
+    const nextSort = params.get("sort");
+    setSort(isFinancialRecordSort(nextSort) ? nextSort : "auto");
   }, [queryString]);
 
   const clearRange = () => { setDateFrom(""); setDateTo(""); updateQuery({ from: null, to: null }); };
-  const clearFilters = () => { setFilter("PAID"); setTypeFilter(""); setFClient(""); setFProject(""); setSearch(""); updateQuery({ status: null, typeFilter: null, client: null, project: null, from: null, to: null }); };
+  const clearFilters = () => { setFilter("PAID"); setTypeFilter(""); setFClient(""); setFProject(""); setSearch(""); setSort("auto"); updateQuery({ status: null, typeFilter: null, client: null, project: null, from: null, to: null, sort: null }); };
 
   const reload = () => { setTimeout(() => { router.refresh(); }, 300); };
   const mkFd = (data: Record<string, unknown>, id?: string) => {
@@ -186,11 +191,7 @@ export function IncomeList({ initialIncomes, projects, clients, incomeTypes }: {
       }
       return true;
     })
-    .sort((a, b) => {
-      const ka = dateOnlyKey(a.status === "PAID" ? a.effectiveDate : a.dueDate) ?? "";
-      const kb = dateOnlyKey(b.status === "PAID" ? b.effectiveDate : b.dueDate) ?? "";
-      return kb.localeCompare(ka);
-    });
+    .sort((a, b) => compareFinancialRecords({ ...a, clientName: a.client?.name ?? "", projectName: a.project?.name ?? "", typeName: a.type?.name ?? "" }, { ...b, clientName: b.client?.name ?? "", projectName: b.project?.name ?? "", typeName: b.type?.name ?? "" }, filter, sort));
 
   const filteredTotal = filtered.reduce((s, inc) => s + fmt(inc.amountUsd), 0);
 
@@ -224,6 +225,7 @@ export function IncomeList({ initialIncomes, projects, clients, incomeTypes }: {
   useEffect(() => { clearSelection(); }, [sp]);
 
   const statusLabel = (s: string, d: any) => formatIncomeStatus(s, d);
+  const handleSort = (key: FinancialRecordSortKey) => { const value = toggleFinancialRecordSort(sort, key, filter === "PAID" ? "desc" : "asc"); setSort(value); updateQuery({ sort: value === "auto" ? null : value }); };
   const statusTone = (s: string, d: any): "success" | "danger" | "warning" | "neutral" => { const l = statusLabel(s, d); if (l === "Cobrado") return "success"; if (l === "Vencido") return "danger"; if (l === "Pendiente") return "warning"; return "neutral"; };
   const typeName = (id: string) => incomeTypes.find(t => t.id === id)?.name ?? "—";
   const bulkFieldLabels: Record<string, string> = { concept: "Concepto", type: "Tipo", status: "Estado", amount: "Monto USD", ars: "Monto ARS + TC" };
@@ -236,6 +238,9 @@ export function IncomeList({ initialIncomes, projects, clients, incomeTypes }: {
           <div className="flex gap-2 flex-wrap">
             <Select value={filter} onChange={(e) => { setFilter(e.target.value); updateQuery({ status: e.target.value }); }} className="w-28 text-xs">
               <option value="all">Todos</option><option value="PAID">Cobrados</option><option value="PENDING">Pendientes</option><option value="OVERDUE">Vencidos</option>
+            </Select>
+            <Select aria-label="Ordenar registros" value={sort} onChange={(e) => { const value = e.target.value as FinancialRecordSort; setSort(value); updateQuery({ sort: value === "auto" ? null : value }); }} className="w-44 text-xs">
+              <option value="auto">Orden recomendado</option><option value="date-asc">Fecha: más antigua</option><option value="date-desc">Fecha: más reciente</option><option value="amount-desc">Importe: mayor</option><option value="amount-asc">Importe: menor</option><option value="concept-asc">Concepto: A-Z</option><option value="concept-desc">Concepto: Z-A</option>
             </Select>
             <Select value={typeFilter} onChange={(e) => { setTypeFilter(e.target.value); updateQuery({ typeFilter: e.target.value || null }); }} className="w-36 text-xs">
               <option value="">Tipos</option>{incomeTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
@@ -271,7 +276,7 @@ export function IncomeList({ initialIncomes, projects, clients, incomeTypes }: {
       {/* DESKTOP TABLE */}
       <div className="hidden md:block">
         <DataTable tableClassName="table-fixed"
-          headers={[<input key="cb" type="checkbox" checked={allSelected} onChange={toggleAll} className="h-3.5 w-3.5" />,"Concepto","Cliente","Proyecto","Tipo","Estado","Fecha","USD","ARS","Acciones"]}
+          headers={[<input key="cb" type="checkbox" checked={allSelected} onChange={toggleAll} className="h-3.5 w-3.5" />,<SortableHeader key="concept" label="Concepto" sortKey="concept" sort={sort} onSort={handleSort} />,<SortableHeader key="client" label="Cliente" sortKey="client" sort={sort} onSort={handleSort} />,<SortableHeader key="project" label="Proyecto" sortKey="project" sort={sort} onSort={handleSort} />,<SortableHeader key="type" label="Tipo" sortKey="type" sort={sort} onSort={handleSort} />,<SortableHeader key="status" label="Estado" sortKey="status" sort={sort} onSort={handleSort} />,<SortableHeader key="date" label="Fecha" sortKey="date" sort={sort} defaultDirection={filter === "PAID" ? "desc" : "asc"} onSort={handleSort} />,<SortableHeader key="amount" label="USD" sortKey="amount" sort={sort} onSort={handleSort} />,<SortableHeader key="ars" label="ARS" sortKey="ars" sort={sort} onSort={handleSort} />,"Acciones"]}
           colGroup={<colgroup><col style={{width:"4%"}} /><col style={{width:"14%"}} /><col style={{width:"11%"}} /><col style={{width:"11%"}} /><col style={{width:"8%"}} /><col style={{width:"9%"}} /><col style={{width:"9%"}} /><col style={{width:"10%"}} /><col style={{width:"11%"}} /><col style={{width:"13%"}} /></colgroup>}
           footer={<tr className="bg-gray-50 font-semibold"><td className="px-3 py-2.5 text-xs text-gray-500">Total filtrado · {filtered.length} mov.</td><td /><td /><td /><td /><td /><td className="px-3 py-2.5 text-sm text-right tabular-nums">{formatUsd(filteredTotal)}</td><td /><td /></tr>}
         >

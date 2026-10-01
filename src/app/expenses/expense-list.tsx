@@ -12,10 +12,12 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import { ConfirmActionModal } from "@/components/ui/confirm-action-modal";
 import { BulkActionBar } from "@/components/ui/bulk-action-bar";
 import { ModalPortal } from "@/components/ui/modal-portal";
+import { SortableHeader } from "@/components/ui/sortable-header";
 import { saveExpense, removeExpense, payExpense, createExpenseBatch, bulkUpdateExpenses } from "./actions";
 import { saveCategory, removeCategory } from "./categories/actions";
 import { formatUsd, formatArs, formatDate, formatExpenseStatus, toInputDate } from "@/lib/utils";
 import { dateOnlyKey, isDateOnlyInRange, todayKeyArgentina } from "@/lib/dates";
+import { compareFinancialRecords, isFinancialRecordSort, toggleFinancialRecordSort, type FinancialRecordSort, type FinancialRecordSortKey } from "@/lib/financial-record-order";
 
 type E = { id: string; type: string; concept: string; notes: string | null; status: string;
   amountUsd: any; amountArs: any; exchangeRate: any; dueDate: string | Date | null; effectiveDate: string | Date | null;
@@ -33,6 +35,7 @@ export function ExpenseList({ initial, categories: cats, projects: projs, client
   const [categories, setCategories] = useState<Cat[]>(cats);
   const [fStatus, setFStatus] = useState("PAID"); const [fType, setFType] = useState(""); const [fCat, setFCat] = useState(""); const [fProj, setFProj] = useState(""); const [fClient, setFClient] = useState("");
   const [dateFrom, setDateFrom] = useState(""); const [dateTo, setDateTo] = useState("");
+  const [sort, setSort] = useState<FinancialRecordSort>("auto");
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false); const [editing, setEditing] = useState<E | null>(null);
   const [payTarget, setPayTarget] = useState<E | null>(null);
@@ -79,9 +82,11 @@ export function ExpenseList({ initial, categories: cats, projects: projs, client
     setFStatus(s === "all" || s === "PAID" || s === "PENDING" || s === "OVERDUE" ? s : "PAID");
     setFType(params.get("type") ?? ""); setFCat(params.get("cat") ?? ""); setFProj(params.get("project") ?? ""); setFClient(params.get("client") ?? "");
     setDateFrom(params.get("from") ?? ""); setDateTo(params.get("to") ?? "");
+    const nextSort = params.get("sort");
+    setSort(isFinancialRecordSort(nextSort) ? nextSort : "auto");
   }, [queryString]);
   const clearRange = () => { setDateFrom(""); setDateTo(""); updateQuery({ from: null, to: null }); };
-  const clearFilters = () => { setFStatus("PAID"); setFType(""); setFCat(""); setFProj(""); setFClient(""); setSearch(""); updateQuery({ status: null, type: null, cat: null, project: null, client: null, from: null, to: null }); };
+  const clearFilters = () => { setFStatus("PAID"); setFType(""); setFCat(""); setFProj(""); setFClient(""); setSearch(""); setSort("auto"); updateQuery({ status: null, type: null, cat: null, project: null, client: null, from: null, to: null, sort: null }); };
 
   const reload = () => { setTimeout(() => { router.refresh(); }, 300); };
 
@@ -226,11 +231,7 @@ export function ExpenseList({ initial, categories: cats, projects: projs, client
       }
       return true;
     })
-    .sort((a, b) => {
-      const ka = dateOnlyKey(a.status === "PAID" ? a.effectiveDate : a.dueDate) ?? "";
-      const kb = dateOnlyKey(b.status === "PAID" ? b.effectiveDate : b.dueDate) ?? "";
-      return kb.localeCompare(ka);
-    });
+    .sort((a, b) => compareFinancialRecords({ ...a, projectName: a.project?.name ?? "", categoryName: a.category.name, typeName: a.type }, { ...b, projectName: b.project?.name ?? "", categoryName: b.category.name, typeName: b.type }, fStatus, sort));
 
   const filteredExpTotal = filtered.reduce((s, e) => s + fmt(e.amountUsd), 0);
 
@@ -263,12 +264,14 @@ export function ExpenseList({ initial, categories: cats, projects: projs, client
   };
   // Clear selection when filters change
   useEffect(() => { clearSelection(); }, [sp]);
+  const handleSort = (key: FinancialRecordSortKey) => { const value = toggleFinancialRecordSort(sort, key, fStatus === "PAID" ? "desc" : "asc"); setSort(value); updateQuery({ sort: value === "auto" ? null : value }); };
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex gap-2 flex-wrap">
           <Select value={fStatus} onChange={(e) => { setFStatus(e.target.value); updateQuery({ status: e.target.value }); }} className="w-28 text-xs"><option value="all">Todos</option><option value="PAID">Pagados</option><option value="PENDING">Pendientes</option><option value="OVERDUE">Vencidos</option></Select>
+          <Select aria-label="Ordenar registros" value={sort} onChange={(e) => { const value = e.target.value as FinancialRecordSort; setSort(value); updateQuery({ sort: value === "auto" ? null : value }); }} className="w-44 text-xs"><option value="auto">Orden recomendado</option><option value="date-asc">Fecha: más antigua</option><option value="date-desc">Fecha: más reciente</option><option value="amount-desc">Importe: mayor</option><option value="amount-asc">Importe: menor</option><option value="concept-asc">Concepto: A-Z</option><option value="concept-desc">Concepto: Z-A</option></Select>
           <Select value={fType} onChange={(e) => { setFType(e.target.value); updateQuery({ type: e.target.value || null }); }} className="w-24 text-xs"><option value="">Tipos</option><option value="FIXED">Fijos</option><option value="VARIABLE">Variables</option></Select>
           <SearchableSelect value={fCat} onChange={(v) => { setFCat(v); updateQuery({ cat: v || null }); }} options={categories.map(c => ({ id: c.id, name: c.name }))} placeholder="Categoria" className="w-36 text-xs" />
           <SearchableSelect value={fClient} onChange={(v) => { setFClient(v); setFProj(""); updateQuery({ client: v || null, project: null }); }} options={cls} placeholder="Cliente" className="w-36 text-xs" />
@@ -302,7 +305,7 @@ export function ExpenseList({ initial, categories: cats, projects: projs, client
       {/* DESKTOP TABLE */}
       <div className="hidden md:block">
         <DataTable tableClassName="table-fixed"
-          headers={[<input key="cb" type="checkbox" checked={allSelected} onChange={toggleAll} className="h-3.5 w-3.5" />,"Concepto","Categoria","Proyecto","Tipo","Estado","Fecha","USD","ARS","Acciones"]}
+          headers={[<input key="cb" type="checkbox" checked={allSelected} onChange={toggleAll} className="h-3.5 w-3.5" />,<SortableHeader key="concept" label="Concepto" sortKey="concept" sort={sort} onSort={handleSort} />,<SortableHeader key="category" label="Categoria" sortKey="category" sort={sort} onSort={handleSort} />,<SortableHeader key="project" label="Proyecto" sortKey="project" sort={sort} onSort={handleSort} />,<SortableHeader key="type" label="Tipo" sortKey="type" sort={sort} onSort={handleSort} />,<SortableHeader key="status" label="Estado" sortKey="status" sort={sort} onSort={handleSort} />,<SortableHeader key="date" label="Fecha" sortKey="date" sort={sort} defaultDirection={fStatus === "PAID" ? "desc" : "asc"} onSort={handleSort} />,<SortableHeader key="amount" label="USD" sortKey="amount" sort={sort} onSort={handleSort} />,<SortableHeader key="ars" label="ARS" sortKey="ars" sort={sort} onSort={handleSort} />,"Acciones"]}
           colGroup={<colgroup><col style={{width:"4%"}} /><col style={{width:"13%"}} /><col style={{width:"12%"}} /><col style={{width:"12%"}} /><col style={{width:"8%"}} /><col style={{width:"9%"}} /><col style={{width:"9%"}} /><col style={{width:"10%"}} /><col style={{width:"10%"}} /><col style={{width:"13%"}} /></colgroup>}
           footer={<tr className="bg-gray-50 font-semibold"><td className="px-3 py-2.5 text-xs text-gray-500">Total filtrado · {filtered.length} mov.</td><td /><td /><td /><td /><td /><td /><td className="px-3 py-2.5 text-sm text-right tabular-nums">{formatUsd(filteredExpTotal)}</td><td /><td /></tr>}
         >
