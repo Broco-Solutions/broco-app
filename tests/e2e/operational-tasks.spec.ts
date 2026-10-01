@@ -2,6 +2,16 @@ import { expect, test } from "@playwright/test";
 import { loginAsAdmin, loginAsCollaboratorA } from "./auth";
 
 const uniqueTitle = (prefix: string) => `${prefix} ${Date.now()}`;
+const todayInArgentina = () => {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Argentina/Buenos_Aires",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((item) => item.type === type)?.value;
+  return `${part("year")}-${part("month")}-${part("day")}`;
+};
 
 test.describe("Tareas operativas V1", () => {
   test("ADMIN crea, bloquea y registra tiempo real para el responsable", async ({ page }) => {
@@ -38,7 +48,14 @@ test.describe("Tareas operativas V1", () => {
 
     await detail.getByRole("button", { name: "Registrar tiempo" }).click();
     const timeForm = page.getByRole("heading", { name: "Registrar tiempo" }).locator("xpath=ancestor::form");
-    await timeForm.getByLabel("Minutos").fill("25");
+    await expect(timeForm.locator('input[name="workDate"]')).toHaveValue(todayInArgentina());
+    await expect(timeForm.locator('select[name="unit"]')).toHaveValue("MINUTES");
+    await timeForm.locator('select[name="unit"]').selectOption("HOURS");
+    await timeForm.getByLabel("Duración").fill("1,5");
+    await expect(timeForm.getByText("Equivalencia: 1 h 30 min")).toBeVisible();
+    await timeForm.locator('select[name="unit"]').selectOption("MINUTES");
+    await timeForm.getByLabel("Duración").fill("25");
+    await expect(timeForm.getByText("Equivalencia: 25 min")).toBeVisible();
     await timeForm.getByLabel("Detalle adicional").fill("Revisión inicial");
     await timeForm.getByRole("button", { name: "Registrar tiempo" }).click();
     await expect(detail.getByText("25 min").first()).toBeVisible();
@@ -53,6 +70,10 @@ test.describe("Tareas operativas V1", () => {
     await expect(detail.getByRole("button", { name: "Ahora no" })).toBeVisible();
     await detail.getByRole("button", { name: "Ahora no" }).click();
     await expect(detail.getByRole("button", { name: "Reabrir como pendiente" })).toBeVisible();
+
+    await page.goto("/hours");
+    await expect(page.getByText(`${title} — Revisión inicial`).last()).toBeVisible();
+    await expect(page.getByRole("cell", { name: "25 min" }).last()).toBeVisible();
   });
 
   test("COLLABORATOR ve sólo la experiencia propia y crea una tarea sin selector de responsable", async ({ page }) => {

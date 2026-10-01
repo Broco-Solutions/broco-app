@@ -64,3 +64,15 @@ Nota: `pnpm test:db:up` informó conflicto porque el contenedor canónico ya est
 - Se corrigió la finalización para conservar abierto el detalle, mostrar la confirmación, el tiempo acumulado y la invitación opcional a registrar otro tiempo. Los cambios de estado actualizan la lista local con el `updatedAt` devuelto por el servidor y mantienen CAS.
 - Verificado de punta a punta: el registro desde la tarea apareció como `TimeEntry` en Tiempos → Registros, permitió la corrección administrativa existente y fue incluido en Reportes. La descripción usó título más detalle opcional, sin copiar la descripción larga.
 - No se ejecutaron DDL ni migraciones contra producción, ni se hizo deploy.
+
+## Ajuste final — consistencia de carga de tiempo
+
+- Se compartieron entre Tiempos y Tareas los campos de Fecha y Duración/Unidad, y el mismo conversor servidor de minutos/horas. La carga rápida conserva el selector Minutos/Horas, coma decimal, equivalencia visible, rechazo de fracciones de minuto o redondeos y límite de 24 horas.
+- La Fecha abre precargada con el día actual de Argentina, continúa editable y mantiene el mismo máximo y validación de calendario de Tiempos.
+- `tests/unit/time-duration.test.ts` y las integraciones de Tareas/Tiempos: 3 archivos, 24 tests, todo pasó.
+- `pnpm test`: 50 archivos, 468 tests, todo pasó.
+- `tests/e2e/operational-tasks.spec.ts`: 2 casos, todo pasó. El flujo valida fecha inicial, unidad, equivalencia, creación real, acumulado de la tarea y aparición en Tiempos → Registros.
+- Suite E2E global: 30 casos, todo pasó con 6 workers.
+- `pnpm lint`, `pnpm exec tsc --noEmit`, `pnpm build` y `git diff --check`: todo pasó.
+- Verificación de navegador sobre el build local: login renderizó contenido e interacciones, sin overlay de error. Se usaron únicamente la base y las credenciales locales de test existentes.
+- No se ejecutaron DDL ni migraciones contra producción, ni se hizo push, merge o deploy.
