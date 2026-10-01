@@ -190,9 +190,14 @@ export function ProjectAccessPanel({
           <div className="space-y-2">
             <p className="text-xs font-medium uppercase tracking-wider text-ink/50">Enlace</p>
             <div className="flex flex-wrap items-center gap-2">
-              <code className="flex-1 break-all rounded bg-gray-50 px-2 py-1.5 text-xs text-ink">
+              <a
+                href={shareUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 break-all rounded bg-gray-50 px-2 py-1.5 text-xs text-cobalt underline decoration-cobalt/30 underline-offset-2 hover:decoration-cobalt"
+              >
                 {shareUrl}
-              </code>
+              </a>
               <Button variant="secondary" onClick={handleCopyLink} className="shrink-0">
                 {copiedLink ? "¡Copiado!" : "Copiar enlace"}
               </Button>
