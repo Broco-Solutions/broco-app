@@ -40,3 +40,9 @@ Nota: `pnpm test:db:up` informó conflicto porque el contenedor canónico ya est
 - `pnpm exec tsc --noEmit`: pasó.
 - Suites focalizadas de Tareas, Horas y runners productivos: 6 archivos, 29 tests, todo pasó.
 - Verificado: descripción automática, detalle adicional, vínculo real con `TimeEntry`, IDOR, tarea sin proyecto, carga ADMIN para responsable, idempotencia, auditoría y exclusión de anulados del total.
+
+## Lote 5
+
+- Se revisó la autenticación MCP real: Auth0 OAuth valida issuer, audience, allowlist y scopes, pero no resuelve un `AppUser` activo ni su rol/asignaciones.
+- Las tools operativas no fueron registradas para evitar que una identidad MCP pueda eludir el scope ADMIN/COLLABORATOR.
+- La decisión necesaria quedó registrada en `DECISIONS_PENDING.md`.

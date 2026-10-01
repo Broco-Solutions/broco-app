@@ -10,3 +10,11 @@ Antes de exponer tareas o tiempos operativos a colaboradores por MCP se necesita
 2. mantener las herramientas operativas MCP como una capacidad exclusivamente administrativa.
 
 Hasta resolverlo, no se expondrán datos ni mutaciones operativas que puedan eludir el scope de la aplicación.
+
+### Impacto en V1
+
+Las herramientas `consultar_tareas_operativas`, `crear_tarea_operativa`,
+`actualizar_tarea_operativa`, `cambiar_estado_tarea_operativa` y
+`registrar_tiempo_tarea_operativa` no se registran en el servidor MCP actual.
+No existe conflicto con las herramientas de planificación de `ProjectTask` y
+la funcionalidad humana queda completa e independiente.
