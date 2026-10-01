@@ -93,5 +93,9 @@ Nota: `pnpm test:db:up` informó conflicto porque el contenedor canónico ya est
 ## Gate de integración y producción
 
 - `git fetch origin` confirmó `main` y `origin/main` alineados en `00f2354`; la feature es un avance lineal de nueve commits, sin divergencias.
-- Los DDL de Tareas Operativas son aditivos y cuentan con runners idempotentes probados, pero todavía requieren la ventana controlada de `docs/PRODUCCION.md`: snapshot verificable del proveedor, inventario PRE, doble ejecución controlada de ambos runners e inventario POST coincidente.
-- Al no estar disponibles en este entorno la confirmación del backup ni la ubicación segura para inventarios/log de ventana, se detuvo antes de merge, push y deployment. No se ejecutó ningún DDL contra producción.
+- Publicación productiva iniciada el 2026-10-01. Se generó el backup lógico PRE `/home/rcoirini/backups/broco/broco-pre-operational-tasks-20261001-183039.dump` (96.934 bytes, SHA-256 `6f890b09a95454575896d897cbfceaa3e9f5623f753cdd4725c3a874034c0319`). Se verificó con `pg_restore --list` usando PostgreSQL 17 y su checksum fue validado.
+- El inventario PRE quedó en `/home/rcoirini/backups/broco/broco-pre-operational-tasks-20261001-183039.inventory.json` (SHA-256 `6cb10a386501accc7a73e413db8a3a31cf6687d308b04545774e0c33f6465de5`).
+- `prod:migrate:operational-tasks`: primera ejecución `MIGRATION_COMPLETED`; segunda ejecución `MIGRATION_SKIPPED`.
+- `prod:migrate:operational-task-time`: primera ejecución `MIGRATION_COMPLETED`; segunda ejecución `MIGRATION_SKIPPED`.
+- El inventario POST quedó en `/home/rcoirini/backups/broco/broco-post-operational-tasks-20261001-183039.inventory.json` (SHA-256 `a7672721f9cd717c528596b1fa1bf3ac465a20cbfdb2fc676fd0cf80ef379035`). `prod:inventory:compare` confirmó `INVENTORY_MATCH`: se preservaron los conteos y las huellas históricas.
+- Los runners validaron sus postcondiciones: `OperationalTask`, su enum, relaciones e índices; y la FK/índice nullable de `TimeEntry.operationalTaskId`. No se requirió backup POST: el antecedente productivo versionado contempla el dump verificable PRE.
