@@ -188,6 +188,16 @@ Su DDL está versionado en
 `prisma/migrations/20261001130000_link_operational_tasks_time_entries/migration.sql`.
 También debe ejecutarse dos veces: la segunda debe informar migración omitida.
 
+El enlace de referencia opcional de Tareas Operativas se aplica con el runner
+aditivo `scripts/migrate-operational-task-reference-url-production.ts`. Sólo
+agrega `operational_tasks.reference_url` como `TEXT NULL`; primero verifica la
+tabla histórica y la forma exacta de la columna, toma un lock transaccional y
+la segunda ejecución informa migración omitida.
+
+```bash
+ALLOW_PRODUCTION_MIGRATION=true pnpm prod:migrate:operational-task-reference-url
+```
+
 Nunca imprime URL, secretos ni DDL sensible. Sus estados son:
 
 | Estado | Acción |

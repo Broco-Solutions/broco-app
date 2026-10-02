@@ -45,6 +45,7 @@ export async function createOperationalTaskAction(
     const input = operationalTaskCreateSchema.parse({
       title: formData.get("title"),
       description: optionalString(formData.get("description")),
+      referenceUrl: optionalString(formData.get("referenceUrl")),
       assigneeId: optionalString(formData.get("assigneeId")) ?? undefined,
       projectId: optionalString(formData.get("projectId")),
       dueDate: optionalString(formData.get("dueDate")),
@@ -67,6 +68,7 @@ export async function updateOperationalTaskAction(
     const input = operationalTaskUpdateSchema.parse({
       title: formData.has("title") ? formData.get("title") : undefined,
       description: formData.has("description") ? optionalString(formData.get("description")) : undefined,
+      referenceUrl: formData.has("referenceUrl") ? optionalString(formData.get("referenceUrl")) : undefined,
       assigneeId: formData.has("assigneeId") ? optionalString(formData.get("assigneeId")) ?? undefined : undefined,
       projectId: formData.has("projectId") ? optionalString(formData.get("projectId")) : undefined,
       dueDate: formData.has("dueDate") ? optionalString(formData.get("dueDate")) : undefined,

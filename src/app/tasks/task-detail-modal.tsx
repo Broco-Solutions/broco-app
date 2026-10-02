@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { CalendarDays, Clock3, Pencil, X } from "lucide-react";
+import { CalendarDays, Clock3, ExternalLink, Pencil, X } from "lucide-react";
 import { ModalPortal } from "@/components/ui/modal-portal";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -119,6 +119,15 @@ export function TaskDetailModal({
                       <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-500">Descripción</h3>
                       <div className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-gray-700">{task.description || "Sin descripción."}</div>
                     </section>
+                    {task.referenceUrl ? (
+                      <section>
+                        <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-500">Enlace de referencia</h3>
+                        <a href={task.referenceUrl} target="_blank" rel="noreferrer" className="mt-2 inline-flex max-w-full items-center gap-1.5 break-all text-sm font-medium text-brand hover:underline">
+                          <ExternalLink className="h-4 w-4 shrink-0" />
+                          {task.referenceUrl}
+                        </a>
+                      </section>
+                    ) : null}
                     {task.blockedReason ? (
                       <section className="rounded-xl border border-red-100 bg-red-50/70 p-4">
                         <h3 className="text-xs font-semibold uppercase tracking-wider text-red-700">Motivo de bloqueo</h3>

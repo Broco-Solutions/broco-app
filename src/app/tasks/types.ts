@@ -4,6 +4,7 @@ export type OperationalTaskDTO = {
   id: string;
   title: string;
   description: string | null;
+  referenceUrl: string | null;
   status: OperationalTaskStatusDTO;
   creatorId: string;
   assigneeId: string;

@@ -29,6 +29,7 @@ export function TaskFormModal({
   const router = useRouter();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [referenceUrl, setReferenceUrl] = useState("");
   const [assigneeId, setAssigneeId] = useState(actorId);
   const [projectId, setProjectId] = useState("");
   const [dueDate, setDueDate] = useState("");
@@ -39,6 +40,7 @@ export function TaskFormModal({
     if (!open) return;
     setTitle(task?.title ?? "");
     setDescription(task?.description ?? "");
+    setReferenceUrl(task?.referenceUrl ?? "");
     setAssigneeId(task?.assigneeId ?? actorId);
     setProjectId(task?.projectId ?? "");
     setDueDate(task?.dueDate?.slice(0, 10) ?? "");
@@ -59,6 +61,7 @@ export function TaskFormModal({
       const formData = new FormData();
       formData.set("title", title);
       formData.set("description", description);
+      formData.set("referenceUrl", referenceUrl);
       formData.set("dueDate", dueDate);
       if (isAdmin && (!task || assigneeId !== task.assigneeId)) formData.set("assigneeId", assigneeId);
       if (!task || projectId !== (task.projectId ?? "")) formData.set("projectId", projectId);
@@ -126,6 +129,10 @@ export function TaskFormModal({
         <label className="sm:col-span-2">
           <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Descripción</span>
           <Textarea value={description} onChange={(event) => setDescription(event.target.value)} maxLength={10000} rows={7} className="mt-1" />
+        </label>
+        <label className="sm:col-span-2">
+          <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Enlace de referencia (opcional)</span>
+          <Input type="url" value={referenceUrl} onChange={(event) => setReferenceUrl(event.target.value)} maxLength={2000} placeholder="https://…" className="mt-1" />
         </label>
       </div>
     </EditEntityModal>

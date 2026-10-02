@@ -295,6 +295,7 @@ model OperationalTask {
   id            String                @id @default(uuid()) @db.Uuid
   title         String
   description   String?
+  referenceUrl  String?               @map("reference_url")
   status        OperationalTaskStatus @default(PENDING)
   creatorId     String                @map("creator_id") @db.Uuid
   assigneeId    String                @map("assignee_id") @db.Uuid

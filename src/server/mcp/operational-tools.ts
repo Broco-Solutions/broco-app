@@ -74,6 +74,7 @@ function taskDto(task: Awaited<ReturnType<typeof listOperationalTasks>>[number])
     id: task.id,
     titulo: task.title,
     descripcion: task.description,
+    referenciaUrl: task.referenceUrl,
     estado: task.status,
     vencimiento: due,
     vencida: Boolean(due && due < today && task.status !== "DONE"),
@@ -237,9 +238,9 @@ export function registerOperationalTools(
 
   server.registerTool(
     "crear_tarea_operativa",
-    { title: "Crear tarea operativa", description: "Crea una tarea operativa. COLLABORATOR siempre crea y asigna la tarea para sí mismo.", inputSchema: z.object({ titulo: z.string().trim().min(1).max(300), descripcion: z.string().trim().max(10_000).nullable().optional(), projectId: uuid.nullable().optional(), vencimiento: date.nullable().optional(), assigneeId: uuid.optional() }).strict(), ...writeMetadata },
+    { title: "Crear tarea operativa", description: "Crea una tarea operativa. COLLABORATOR siempre crea y asigna la tarea para sí mismo.", inputSchema: z.object({ titulo: z.string().trim().min(1).max(300), descripcion: z.string().trim().max(10_000).nullable().optional(), referenciaUrl: z.string().trim().url().max(2_000).nullable().optional(), projectId: uuid.nullable().optional(), vencimiento: date.nullable().optional(), assigneeId: uuid.optional() }).strict(), ...writeMetadata },
     async (input, ctx) => write(ctx, async (actor) => {
-      const task = await createOperationalTask(actor, { title: input.titulo, description: input.descripcion, projectId: input.projectId, dueDate: input.vencimiento, assigneeId: actor.role === "ADMIN" ? input.assigneeId : undefined });
+      const task = await createOperationalTask(actor, { title: input.titulo, description: input.descripcion, referenceUrl: input.referenciaUrl, projectId: input.projectId, dueDate: input.vencimiento, assigneeId: actor.role === "ADMIN" ? input.assigneeId : undefined });
       const listed = await listOperationalTasks(actor, { assigneeId: actor.role === "ADMIN" ? task.assigneeId : undefined });
       const full = listed.find((item) => item.id === task.id);
       return { operacion: "creada", tarea: full ? taskDto(full) : { id: task.id, actualizadaEn: task.updatedAt.toISOString() } };
@@ -248,9 +249,9 @@ export function registerOperationalTools(
 
   server.registerTool(
     "actualizar_tarea_operativa",
-    { title: "Actualizar tarea operativa", description: "Actualiza campos controlados de una tarea propia o, para ADMIN, de cualquier tarea.", inputSchema: z.object({ taskId: uuid, titulo: z.string().trim().min(1).max(300).optional(), descripcion: z.string().trim().max(10_000).nullable().optional(), projectId: uuid.nullable().optional(), vencimiento: date.nullable().optional(), assigneeId: uuid.optional(), expectedUpdatedAt: z.string().datetime() }).strict().refine((value) => Object.keys(value).length > 2, "Debe indicar un cambio."), ...writeMetadata },
+    { title: "Actualizar tarea operativa", description: "Actualiza campos controlados de una tarea propia o, para ADMIN, de cualquier tarea.", inputSchema: z.object({ taskId: uuid, titulo: z.string().trim().min(1).max(300).optional(), descripcion: z.string().trim().max(10_000).nullable().optional(), referenciaUrl: z.string().trim().url().max(2_000).nullable().optional(), projectId: uuid.nullable().optional(), vencimiento: date.nullable().optional(), assigneeId: uuid.optional(), expectedUpdatedAt: z.string().datetime() }).strict().refine((value) => Object.keys(value).length > 2, "Debe indicar un cambio."), ...writeMetadata },
     async (input, ctx) => write(ctx, async (actor) => {
-      const task = await updateOperationalTask(actor, input.taskId, { title: input.titulo, description: input.descripcion, projectId: input.projectId, dueDate: input.vencimiento, assigneeId: actor.role === "ADMIN" ? input.assigneeId : undefined, expectedUpdatedAt: input.expectedUpdatedAt });
+      const task = await updateOperationalTask(actor, input.taskId, { title: input.titulo, description: input.descripcion, referenceUrl: input.referenciaUrl, projectId: input.projectId, dueDate: input.vencimiento, assigneeId: actor.role === "ADMIN" ? input.assigneeId : undefined, expectedUpdatedAt: input.expectedUpdatedAt });
       const listed = await listOperationalTasks(actor, { assigneeId: actor.role === "ADMIN" ? task.assigneeId : undefined });
       const full = listed.find((item) => item.id === task.id);
       return { operacion: "actualizada", tarea: full ? taskDto(full) : { id: task.id, actualizadaEn: task.updatedAt.toISOString() } };

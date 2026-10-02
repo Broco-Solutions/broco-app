@@ -18,6 +18,7 @@
     "prod:migrate:hours-auth": "tsx scripts/migrate-hours-auth-production.ts",
     "prod:migrate:operational-tasks": "tsx scripts/migrate-operational-tasks-production.ts",
     "prod:migrate:operational-task-time": "tsx scripts/migrate-operational-task-time-production.ts",
+    "prod:migrate:operational-task-reference-url": "tsx scripts/migrate-operational-task-reference-url-production.ts",
     "prod:migrate:mcp-identities": "tsx scripts/migrate-mcp-identities-production.ts",
     "seed:hours:test": "NODE_ENV=test tsx scripts/seed-hours-test.ts",
     "test": "vitest run",

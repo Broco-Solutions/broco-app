@@ -23,11 +23,13 @@ const uuid = z.string().uuid("Identificador inválido.");
 const dateOnly = z.string().refine(isValidCalendarDateKey, "Fecha inválida.");
 const title = z.string().trim().min(1, "El título es obligatorio.").max(300, "El título es demasiado largo.");
 const description = z.string().trim().max(10_000, "La descripción es demasiado larga.").nullable().optional();
+const referenceUrl = z.string().trim().url("El enlace no es válido.").max(2_000, "El enlace es demasiado largo.").nullable().optional();
 const blockedReason = z.string().trim().min(1, "Indicá qué necesitás para continuar.").max(4_000, "El motivo es demasiado largo.");
 
 export const operationalTaskCreateSchema = z.object({
   title,
   description,
+  referenceUrl,
   assigneeId: uuid.optional(),
   projectId: uuid.nullable().optional(),
   dueDate: dateOnly.nullable().optional(),
@@ -36,6 +38,7 @@ export const operationalTaskCreateSchema = z.object({
 export const operationalTaskUpdateSchema = z.object({
   title: title.optional(),
   description,
+  referenceUrl,
   assigneeId: uuid.optional(),
   projectId: uuid.nullable().optional(),
   dueDate: dateOnly.nullable().optional(),
@@ -72,6 +75,7 @@ const taskSelect = {
   id: true,
   title: true,
   description: true,
+  referenceUrl: true,
   status: true,
   creatorId: true,
   assigneeId: true,
@@ -123,6 +127,7 @@ export async function listOperationalTasks(actor: CurrentUser, filters: Operatio
       ...(search ? { OR: [
         { title: { contains: search, mode: "insensitive" } },
         { description: { contains: search, mode: "insensitive" } },
+        { referenceUrl: { contains: search, mode: "insensitive" } },
         { blockedReason: { contains: search, mode: "insensitive" } },
       ] } : {}),
     },
@@ -223,6 +228,7 @@ export async function createOperationalTask(actor: CurrentUser, raw: Operational
       data: {
         title: input.title,
         description: input.description?.trim() || null,
+        referenceUrl: input.referenceUrl?.trim() || null,
         creatorId: actor.id,
         assigneeId,
         projectId: input.projectId ?? null,
@@ -256,6 +262,7 @@ export async function updateOperationalTask(actor: CurrentUser, id: string, raw:
       data: {
         ...(input.title !== undefined ? { title: input.title } : {}),
         ...(input.description !== undefined ? { description: input.description?.trim() || null } : {}),
+        ...(input.referenceUrl !== undefined ? { referenceUrl: input.referenceUrl?.trim() || null } : {}),
         ...(input.assigneeId !== undefined ? { assigneeId: input.assigneeId } : {}),
         ...(input.projectId !== undefined ? { projectId: input.projectId } : {}),
         ...(input.dueDate !== undefined ? { dueDate: input.dueDate ? toUtcDate(input.dueDate) : null } : {}),
