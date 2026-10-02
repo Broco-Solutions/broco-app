@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useFormState } from "react-dom";
 import { saveTimeEntry, updateEntry, voidEntry } from "./actions";
 import { SearchableSelect } from "@/components/ui/searchable-select";
@@ -13,6 +13,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { TimeDurationFields, TimeEntryDateField } from "@/components/hours/time-entry-fields";
 import type { CurrentUser } from "@/lib/auth";
 import { formatTimeMinutes, splitTimeMinutes } from "@/lib/time-duration";
+import { getTimeEntryFeedback } from "@/lib/time-entry-feedback";
 
 type Project = { id: string; name: string; client: { id: string; name: string } };
 type User = { id: string; name: string };
@@ -37,12 +38,20 @@ export function HoursScreen({ actor, users, projects, entries, defaultFrom, defa
   const [hours, setHours] = useState("");
   const [minutes, setMinutes] = useState("");
   const [pending, start] = useTransition();
+  const [showSaved, setShowSaved] = useState(saved);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editHours, setEditHours] = useState("");
   const [editMinutes, setEditMinutes] = useState("");
   const [state, formAction] = useFormState(saveTimeEntry, null);
   const [updateState, updateAction] = useFormState(updateEntry, null);
   const operationId = useState(() => (typeof crypto !== "undefined" ? crypto.randomUUID() : ""))[0];
+  useEffect(() => { setShowSaved(saved); }, [saved]);
+  const feedback = getTimeEntryFeedback({
+    saved: showSaved,
+    actionSucceeded: state?.success === true,
+    actionFailed: state?.success === false,
+    pending,
+  });
   const clients = useMemo(() => [...new Map(projects.map((project) => [project.client.id, { id: project.client.id, name: project.client.name }])).values()], [projects]);
   const filteredProjects = projects.filter((project) => !clientId || project.client.id === clientId);
   const beginEdit = (entry: Entry) => {
@@ -63,7 +72,7 @@ export function HoursScreen({ actor, users, projects, entries, defaultFrom, defa
     {updateState && !updateState.success ? <p role="alert" className="text-sm text-red-700 sm:col-span-2 lg:col-span-6">{updateState.message}</p> : null}
   </form>;
   return <div className="space-y-5">
-    <Card><form ref={formRef} onSubmit={(event) => { event.preventDefault(); start(() => formAction(new FormData(event.currentTarget))); }} className="space-y-4">
+    <Card><form ref={formRef} onSubmit={(event) => { event.preventDefault(); setShowSaved(false); start(() => formAction(new FormData(event.currentTarget))); }} className="space-y-4">
       <input type="hidden" name="operationId" value={operationId} />
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {actor.role === "ADMIN" ? <div><label className="text-xs font-semibold uppercase tracking-wider text-gray-500">Usuario</label><select name="userId" defaultValue={actor.id} className="mt-1 h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm">{users.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}</select></div> : <input type="hidden" name="userId" value={actor.id} />}
@@ -74,8 +83,8 @@ export function HoursScreen({ actor, users, projects, entries, defaultFrom, defa
       <TimeDurationFields hours={hours} minutes={minutes} onHoursChange={setHours} onMinutesChange={setMinutes} />
       <div><label className="text-xs font-semibold uppercase tracking-wider text-gray-500">Descripción</label><Textarea name="description" required placeholder="¿Qué trabajo se realizó?" className="mt-1" /></div>
       <div><label className="text-xs font-semibold uppercase tracking-wider text-gray-500">Enlace de referencia (opcional)</label><Input name="referenceUrl" type="url" placeholder="https://…" /></div>
-      {state && !state.success ? <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{state.message}</p> : null}
-      {saved || state?.success ? <p role="status" aria-live="polite" className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700">Registro guardado correctamente.</p> : null}
+      {feedback === "error" && state && !state.success ? <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{state.message}</p> : null}
+      {feedback === "success" ? <p role="status" aria-live="polite" className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700">Registro guardado correctamente.</p> : null}
       <div className="flex flex-wrap gap-2"><Button type="submit" disabled={pending || !projectId}>{pending ? "Guardando…" : "Guardar"}</Button><Button type="submit" name="saveMode" value="another" disabled={pending || !projectId} variant="secondary">Guardar y cargar otra</Button></div>
     </form></Card>
     <Card>
