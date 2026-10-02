@@ -1,6 +1,7 @@
 import type { AuthInfo } from "@modelcontextprotocol/server";
 import {
   createRemoteJWKSet,
+  decodeJwt,
   jwtVerify,
   type JWTVerifyGetKey,
 } from "jose";
@@ -77,8 +78,11 @@ function classifyJwtError(error: unknown): AuthDiagnostic["errorCode"] {
 /** Verifies the external OAuth token. Broco authorization happens per tool. */
 export function makeTokenVerifier(
   config: AuthConfig,
-  getKey: JWTVerifyGetKey = createRemoteJWKSet(getJwksUrl(config.issuer)),
+  getKey?: JWTVerifyGetKey,
 ): TokenVerifier {
+  const remoteKeys = new Map(
+    config.acceptedIssuers.map((issuer) => [issuer, createRemoteJWKSet(getJwksUrl(issuer))]),
+  );
   return async (request, bearerToken) => {
     if (!bearerToken) {
       authDiagnostics.set(request, {
@@ -95,9 +99,15 @@ export function makeTokenVerifier(
     }
 
     try {
-      const { payload } = await jwtVerify(bearerToken, getKey, {
+      const tokenIssuer = decodeJwt(bearerToken).iss;
+      if (!tokenIssuer || !config.acceptedIssuers.includes(tokenIssuer)) {
+        throw new Error("issuer_not_allowed");
+      }
+      const verificationKey = getKey ?? remoteKeys.get(tokenIssuer);
+      if (!verificationKey) throw new Error("issuer_not_allowed");
+      const { payload } = await jwtVerify(bearerToken, verificationKey, {
         algorithms: ["RS256"],
-        issuer: config.issuer,
+        issuer: tokenIssuer,
         audience: config.audience,
         requiredClaims: ["sub", "exp"],
         clockTolerance: 5,
@@ -143,7 +153,7 @@ export function makeTokenVerifier(
         expiresAt: payload.exp,
         extra: {
           sub: subject,
-          provider: config.issuer,
+          provider: tokenIssuer,
           email: email || undefined,
           emailVerified,
         },

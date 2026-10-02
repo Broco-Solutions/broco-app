@@ -10,12 +10,14 @@ import { getAuthDiagnostic, makeTokenVerifier } from "@/lib/mcp/auth";
 import type { AuthConfig } from "@/lib/mcp/config";
 
 const ISSUER = "https://example.auth0.com/";
+const LEGACY_ISSUER = "https://legacy.auth0.com/";
 const AUDIENCE = "https://broco.example/api/mcp";
 let privateKey: CryptoKey;
 let publicKey: CryptoKey;
 
 const config: AuthConfig = {
   issuer: ISSUER,
+  acceptedIssuers: [ISSUER, LEGACY_ISSUER],
   audience: AUDIENCE,
   emailClaim: "https://broco.example/email",
   emailVerifiedClaim: "https://broco.example/email_verified",
@@ -58,6 +60,18 @@ describe("JWT Auth0 para MCP", () => {
       scopes: expect.arrayContaining(["mcp:read", "extra:read"]),
       extra: { sub: "auth0|allowed" },
     });
+  });
+
+  it("acepta el issuer canónico durante la transición", async () => {
+    const token = await sign({}, { issuer: LEGACY_ISSUER });
+    expect(await verifier()(new Request(AUDIENCE), token)).toMatchObject({
+      extra: { provider: LEGACY_ISSUER },
+    });
+  });
+
+  it("rechaza un issuer desconocido", async () => {
+    const token = await sign({}, { issuer: "https://unknown.example/" });
+    expect(await verifier()(new Request(AUDIENCE), token)).toBeUndefined();
   });
 
   it("rechaza firma inválida", async () => {

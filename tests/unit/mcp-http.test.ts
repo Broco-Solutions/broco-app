@@ -17,7 +17,8 @@ const enabled: EnabledMcpConfig = {
   resourceUrl: "https://broco.example/api/mcp",
   requiredScope: "mcp:read",
   auth: {
-    issuer: "https://example.auth0.com/",
+    issuer: "https://login.brocosolutions.com/",
+    acceptedIssuers: ["https://login.brocosolutions.com/", "https://renzo-broco.us.auth0.com/"],
     audience: "https://broco.example/api/mcp",
     emailClaim: "email",
     emailVerifiedClaim: "email_verified",
@@ -164,7 +165,8 @@ describe("Protected Resource Metadata", () => {
     expect(response.headers.get("access-control-allow-origin")).toBe("*");
     await expect(response.json()).resolves.toMatchObject({
       resource: enabled.resourceUrl,
-      authorization_servers: [enabled.auth.issuer],
+      resource_name: "Broco App MCP",
+      authorization_servers: ["https://login.brocosolutions.com/"],
       scopes_supported: ["mcp:read", "mcp:write"],
       bearer_methods_supported: ["header"],
     });

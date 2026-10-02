@@ -6,7 +6,7 @@ import type { EnabledMcpConfig } from "@/lib/mcp/config";
 
 const enabled: EnabledMcpConfig = {
   status: "ok", writeEnabled: true, resourceUrl: "https://broco.test/api/mcp", requiredScope: "mcp:read",
-  auth: { issuer: "https://issuer.test/", audience: "https://broco.test/api/mcp", emailClaim: "email", emailVerifiedClaim: "email_verified" },
+  auth: { issuer: "https://issuer.test/", acceptedIssuers: ["https://issuer.test/"], audience: "https://broco.test/api/mcp", emailClaim: "email", emailVerifiedClaim: "email_verified" },
 };
 const auth: AuthInfo = { token: "test", clientId: "test", scopes: ["mcp:read", "mcp:write"], expiresAt: Math.floor(Date.now() / 1000) + 60, extra: { provider: "https://issuer.test/", sub: "test|writer" } };
 const hasDb = Boolean(process.env.DATABASE_URL && process.env.DATABASE_URL_TEST);

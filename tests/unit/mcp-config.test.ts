@@ -6,6 +6,7 @@ const MCP_ENV_KEYS = [
   "BROCO_MCP_ENABLED",
   "BROCO_MCP_WRITE_ENABLED",
   "BROCO_MCP_AUTH0_ISSUER",
+  "BROCO_MCP_AUTH0_LEGACY_ISSUER",
   "BROCO_MCP_RESOURCE_URL",
   "BROCO_MCP_AUTH0_AUDIENCE",
   "BROCO_MCP_AUTH0_EMAIL_CLAIM",
@@ -17,6 +18,7 @@ const original = new Map<string, string | undefined>();
 function enableValidConfig() {
   process.env.BROCO_MCP_ENABLED = "true";
   process.env.BROCO_MCP_AUTH0_ISSUER = "https://example.auth0.com";
+  process.env.BROCO_MCP_AUTH0_LEGACY_ISSUER = "https://legacy.auth0.com";
   process.env.BROCO_MCP_RESOURCE_URL = "https://broco.example/api/mcp";
   process.env.BROCO_MCP_AUTH0_AUDIENCE = "https://broco.example/api/mcp";
 }
@@ -74,12 +76,24 @@ describe("configuración MCP", () => {
 
   });
 
+  it("falla cerrada si falta el issuer legado explícito", () => {
+    process.env.BROCO_MCP_ENABLED = "true";
+    process.env.BROCO_MCP_AUTH0_ISSUER = "https://login.brocosolutions.com";
+    process.env.BROCO_MCP_RESOURCE_URL = "https://broco.example/api/mcp";
+    process.env.BROCO_MCP_AUTH0_AUDIENCE = "https://broco.example/api/mcp";
+    expect(readMcpConfig()).toMatchObject({ status: "misconfigured", reason: "invalid_legacy_issuer" });
+  });
+
   it("normaliza issuer y permite que OAuth conecte sin allowlist", () => {
     enableValidConfig();
     const config = readMcpConfig();
     expect(config.status).toBe("ok");
     if (config.status !== "ok") return;
     expect(config.auth.issuer).toBe("https://example.auth0.com/");
+    expect(config.auth.acceptedIssuers).toEqual([
+      "https://example.auth0.com/",
+      "https://legacy.auth0.com/",
+    ]);
     expect(config.requiredScope).toBe("mcp:read");
     expect(config.writeEnabled).toBe(false);
   });

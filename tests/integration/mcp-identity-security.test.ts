@@ -9,7 +9,7 @@ const hasDb = Boolean(process.env.DATABASE_URL && process.env.DATABASE_URL_TEST)
 const provider = "https://issuer.security.test/";
 const enabled: EnabledMcpConfig = {
   status: "ok", writeEnabled: true, resourceUrl: "https://broco.test/api/mcp", requiredScope: "mcp:read",
-  auth: { issuer: provider, audience: "https://broco.test/api/mcp", emailClaim: "email", emailVerifiedClaim: "email_verified" },
+  auth: { issuer: provider, acceptedIssuers: [provider], audience: "https://broco.test/api/mcp", emailClaim: "email", emailVerifiedClaim: "email_verified" },
 };
 let adminId = "";
 let collaboratorId = "";

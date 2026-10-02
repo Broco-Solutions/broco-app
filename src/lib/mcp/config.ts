@@ -11,6 +11,7 @@ export const MCP_METADATA_PATH = "/.well-known/oauth-protected-resource";
 
 export type AuthConfig = {
   issuer: string;
+  acceptedIssuers: string[];
   audience: string;
   emailClaim: string;
   emailVerifiedClaim: string;
@@ -76,6 +77,10 @@ export function readMcpConfig(): McpConfig {
     process.env.BROCO_MCP_AUTH0_ISSUER,
     "issuer",
   );
+  const legacyIssuer = parseHttpsUrl(
+    process.env.BROCO_MCP_AUTH0_LEGACY_ISSUER,
+    "issuer",
+  );
   const resourceUrl = parseHttpsUrl(
     process.env.BROCO_MCP_RESOURCE_URL,
     "resource",
@@ -92,6 +97,9 @@ export function readMcpConfig(): McpConfig {
   if (!issuer) {
     return { status: "misconfigured", reason: "invalid_issuer" };
   }
+  if (!legacyIssuer || legacyIssuer === issuer) {
+    return { status: "misconfigured", reason: "invalid_legacy_issuer" };
+  }
   if (!resourceUrl || new URL(resourceUrl).pathname !== MCP_ROUTE_PATH) {
     return { status: "misconfigured", reason: "invalid_resource" };
   }
@@ -106,6 +114,7 @@ export function readMcpConfig(): McpConfig {
     status: "ok",
     auth: {
       issuer,
+      acceptedIssuers: [issuer, legacyIssuer],
       audience,
       emailClaim: emailClaim.data,
       emailVerifiedClaim: emailVerifiedClaim.data,

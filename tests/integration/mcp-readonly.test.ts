@@ -29,6 +29,7 @@ const testMcpConfig: EnabledMcpConfig = {
   requiredScope: "mcp:read",
   auth: {
     issuer: "https://issuer.test/",
+    acceptedIssuers: ["https://issuer.test/"],
     audience: "https://broco.test/api/mcp",
     emailClaim: "email",
     emailVerifiedClaim: "email_verified",

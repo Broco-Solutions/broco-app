@@ -347,7 +347,7 @@ export function createProtectedResourceMetadataHandlers(
           authServerUrls: [config.auth.issuer],
           resourceUrl: config.resourceUrl,
           additionalMetadata: {
-            resource_name: "Broco Finance MCP (solo lectura)",
+            resource_name: "Broco App MCP",
             scopes_supported: [config.requiredScope, MCP_WRITE_SCOPE],
             bearer_methods_supported: ["header"],
           },
