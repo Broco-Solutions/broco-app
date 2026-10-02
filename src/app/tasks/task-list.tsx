@@ -179,7 +179,7 @@ export function TaskList({
               tableClassName="table-fixed text-xs"
               scrollable={false}
               headers={isAdmin
-                ? [sortHeader("Estado", "status"), "Tarea", "Cliente / proyecto", sortHeader("Resp.", "assignee"), sortHeader("Vence", "due"), "Hs."]
+                ? [sortHeader("Estado", "status"), "Tarea", "Cliente / proyecto", sortHeader("Responsable", "assignee"), sortHeader("Vence", "due"), "Hs."]
                 : [sortHeader("Estado", "status"), "Tarea", "Cliente / proyecto", sortHeader("Vence", "due"), "Hs."]}
               colGroup={isAdmin
                 ? <colgroup><col style={{width:"14%"}} /><col style={{width:"30%"}} /><col style={{width:"24%"}} /><col style={{width:"15%"}} /><col style={{width:"10%"}} /><col style={{width:"7%"}} /></colgroup>
