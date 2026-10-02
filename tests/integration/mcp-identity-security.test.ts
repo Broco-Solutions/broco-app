@@ -130,11 +130,16 @@ describe.skipIf(!hasDb)("MCP identidad y autorización", () => {
     }
   });
 
-  it("no auto-vincula email ausente, email no verificado ni AppUser inactivo", async () => {
+  it("distingue verificación pendiente de ausencia de AppUser", async () => {
     const inactive = await prisma.appUser.findUniqueOrThrow({ where: { id: inactiveId } });
     await expect(resolveMcpActorFromClaims({ provider, subject: "missing-email" })).rejects.toMatchObject({ code: "APP_USER_REQUIRED" });
-    await expect(resolveMcpActorFromClaims({ provider, subject: "unverified-email", email: inactive.email, emailVerified: false })).rejects.toMatchObject({ code: "APP_USER_REQUIRED" });
+    await expect(resolveMcpActorFromClaims({ provider, subject: "unverified-active", email: (await prisma.appUser.findUniqueOrThrow({ where: { id: collaboratorId } })).email, emailVerified: false })).rejects.toMatchObject({ code: "EMAIL_VERIFICATION_REQUIRED" });
+    await expect(resolveMcpActorFromClaims({ provider, subject: "unverified-email", email: inactive.email, emailVerified: false })).rejects.toMatchObject({ code: "EMAIL_VERIFICATION_REQUIRED" });
     await expect(resolveMcpActorFromClaims({ provider, subject: "inactive-email", email: inactive.email, emailVerified: true })).rejects.toMatchObject({ code: "APP_USER_REQUIRED" });
+  });
+
+  it("mantiene el vínculo por subject aunque el token posterior no verifique el email", async () => {
+    await expect(resolveMcpActorFromClaims({ provider, subject: "collaborator", email: "otro@example.test", emailVerified: false })).resolves.toMatchObject({ id: collaboratorId });
   });
 
   it("revalida rol actual sin relink", async () => {

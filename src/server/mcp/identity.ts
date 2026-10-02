@@ -8,11 +8,14 @@ import { prisma } from "@/server/prisma";
 
 export const MCP_APP_USER_REQUIRED =
   "Tu identidad está autenticada, pero no existe un usuario activo asociado en Broco App.";
+export const MCP_EMAIL_VERIFICATION_REQUIRED =
+  "Tu identidad está autenticada, pero necesitás verificar tu correo electrónico antes de vincularla con Broco App. Verificá tu email en el inicio de sesión y luego volvé a conectar Broco App.";
 
 export class McpAuthorizationError extends Error {
   constructor(
     readonly code:
       | "APP_USER_REQUIRED"
+      | "EMAIL_VERIFICATION_REQUIRED"
       | "APP_USER_INACTIVE"
       | "FORBIDDEN"
       | "INSUFFICIENT_SCOPE",
@@ -80,10 +83,19 @@ async function createVerifiedEmailLink(
   attempted: boolean;
   appUserMatchFound: boolean;
   appUserActive: boolean;
-  result: "created" | "concurrent_existing" | "blocked";
+  result: "created" | "concurrent_existing" | "blocked" | "email_verification_required";
 }> {
   const email = normalizeEmail(claims.email);
-  if (!email || !claims.emailVerified) {
+  if (email && !claims.emailVerified) {
+    return {
+      user: null,
+      attempted: false,
+      appUserMatchFound: false,
+      appUserActive: false,
+      result: "email_verification_required",
+    };
+  }
+  if (!email) {
     return {
       user: null,
       attempted: false,
@@ -182,7 +194,7 @@ export async function resolveMcpActorFromClaims(
   let appUserMatchFound = false;
   let appUserActive = false;
   let autoLinkAttempted = false;
-  let autoLinkResult: "not_needed" | "created" | "concurrent_existing" | "blocked" = "not_needed";
+  let autoLinkResult: "not_needed" | "created" | "concurrent_existing" | "blocked" | "email_verification_required" = "not_needed";
 
   const linked = await client.mcpIdentity.findUnique({
     where: {
@@ -228,6 +240,9 @@ export async function resolveMcpActorFromClaims(
     auto_link_result: autoLinkResult,
   });
 
+  if (!user && autoLinkResult === "email_verification_required") {
+    throw new McpAuthorizationError("EMAIL_VERIFICATION_REQUIRED", MCP_EMAIL_VERIFICATION_REQUIRED);
+  }
   if (!user) throw new McpAuthorizationError("APP_USER_REQUIRED", MCP_APP_USER_REQUIRED);
   if (!user.isActive) {
     throw new McpAuthorizationError("APP_USER_INACTIVE", MCP_APP_USER_REQUIRED);
