@@ -10,7 +10,7 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Select } from "@/components/ui/select";
 import { SortableHeader } from "@/components/ui/sortable-header";
 import { OperationalTaskStatusBadge } from "@/components/tasks/operational-task-status";
-import { formatDate, formatDateShort } from "@/lib/dates";
+import { formatDate } from "@/lib/dates";
 import {
   compareOperationalTasks,
   toggleOperationalTaskSort,
@@ -174,7 +174,7 @@ export function TaskList({
 
       {filtered.length === 0 ? <EmptyState title="No hay tareas para estos filtros" description="Probá limpiar los filtros o creá una nueva tarea operativa." /> : (
         <>
-          <div className="hidden lg:block">
+          <div className="hidden xl:block">
             <DataTable
               tableClassName="table-fixed"
               headers={isAdmin
@@ -193,15 +193,15 @@ export function TaskList({
                     <td className="px-3 py-2.5"><div className="truncate" title={task.project?.client.name}>{task.project?.client.name ?? "—"}</div></td>
                     <td className="px-3 py-2.5"><div className="truncate" title={task.project?.name}>{task.project?.name ?? "—"}</div></td>
                     {isAdmin ? <td className="px-3 py-2.5"><div className="truncate" title={task.assignee.name}>{task.assignee.name}</div></td> : null}
-                    <td className={`break-words px-3 py-2.5 tabular-nums ${overdue ? "font-semibold text-red-700" : ""}`}>{formatDateShort(task.dueDate)}</td>
-                    <td className="break-words px-3 py-2.5 text-xs font-semibold tabular-nums text-gray-700">{task.timeMinutes > 0 ? `${Math.floor(task.timeMinutes / 60)} h ${task.timeMinutes % 60} min` : "—"}</td>
-                    <td className="break-words px-3 py-2.5 text-xs tabular-nums text-gray-500">{formatDateShort(task.updatedAt)}</td>
+                    <td className={`break-words px-2 py-2 tabular-nums ${overdue ? "font-semibold text-red-700" : ""}`}>{formatDate(task.dueDate)}</td>
+                    <td className="break-words px-2 py-2 text-xs font-semibold tabular-nums text-gray-700">{task.timeMinutes > 0 ? `${Math.floor(task.timeMinutes / 60)} h ${task.timeMinutes % 60} min` : "—"}</td>
+                    <td className="break-words px-2 py-2 text-xs tabular-nums text-gray-500">{formatDate(task.updatedAt)}</td>
                   </tr>
                 );
               })}
             </DataTable>
           </div>
-          <div className="space-y-2 lg:hidden">
+          <div className="space-y-2 xl:hidden">
             {filtered.map((task) => {
               const overdue = isOverdue(task, today);
               return (
