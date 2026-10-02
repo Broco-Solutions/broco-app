@@ -2,6 +2,32 @@ import "server-only";
 import { Prisma, type AppUserRole } from "@prisma/client";
 import { prisma } from "@/server/prisma";
 
+export type McpUserFilters = {
+  search?: string;
+  isActive?: boolean;
+  role?: AppUserRole;
+  skip?: number;
+  take?: number;
+};
+
+export async function listUsersForMcp(filters: McpUserFilters = {}) {
+  const search = filters.search?.trim();
+  return prisma.appUser.findMany({
+    where: {
+      ...(search ? { OR: [
+        { name: { contains: search, mode: "insensitive" } },
+        { email: { contains: search, mode: "insensitive" } },
+      ] } : {}),
+      ...(filters.isActive === undefined ? {} : { isActive: filters.isActive }),
+      ...(filters.role ? { role: filters.role } : {}),
+    },
+    select: { id: true, name: true, email: true, role: true, isActive: true },
+    orderBy: [{ name: "asc" }, { email: "asc" }, { id: "asc" }],
+    skip: filters.skip,
+    take: filters.take,
+  });
+}
+
 async function withAdminMutationLock<T>(operation: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
   return prisma.$transaction(async (tx) => {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('broco:last-active-admin'))`;

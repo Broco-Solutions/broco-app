@@ -33,7 +33,7 @@ import {
   listProjectSummariesForMcp,
   listProjectsForMcp,
 } from "@/server/services/projects";
-import { registerWriteTools, WRITE_MCP_TOOL_NAMES } from "@/server/mcp/write-tools";
+import { registerCatalogReadTools, registerWriteTools, WRITE_MCP_TOOL_NAMES } from "@/server/mcp/write-tools";
 import { mcpErrorResult, requireMcpAdmin } from "@/server/mcp/identity";
 import { registerOperationalTools, OPERATIONAL_MCP_READ_TOOL_NAMES } from "@/server/mcp/operational-tools";
 
@@ -48,6 +48,8 @@ export const MCP_TOOL_NAMES = [
   "planificacion_proyecto",
   "resumen_proyectos",
   ...OPERATIONAL_MCP_READ_TOOL_NAMES,
+  "consultar_tipos_ingreso",
+  "consultar_categorias_gasto",
 ] as const;
 
 export const MCP_TOOL_SECURITY_SCHEMES = [
@@ -1025,5 +1027,6 @@ export function registerTools(
   );
 
   registerOperationalTools(server, { writeEnabled: options.writeEnabled });
+  registerCatalogReadTools(server);
   if (options.writeEnabled) registerWriteTools(server);
 }

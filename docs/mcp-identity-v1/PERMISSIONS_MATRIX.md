@@ -19,7 +19,8 @@
 | crear_categoria_gasto, actualizar_categoria_gasto, eliminar_categoria_gasto | Denegado | Denegado | `mcp:write` + ADMIN |
 | crear_fase_proyecto, actualizar_fase_proyecto, reordenar_fases_proyecto, eliminar_fase_proyecto | Denegado | Denegado | `mcp:write` + ADMIN |
 | crear_tarea_proyecto, actualizar_tarea_proyecto, cambiar_estado_tarea, mover_tarea_de_fase, reordenar_tareas_proyecto, eliminar_tarea_proyecto | Denegado | Denegado | `mcp:write` + ADMIN |
-| consultar_proyectos_operativos | Denegado | Sólo proyectos con `HourAssignment`, DTO mínimo | Proyectos activos, DTO mínimo |
+| consultar_proyectos_operativos | Denegado | Sólo proyectos con acceso de proyecto, DTO mínimo | Proyectos activos, DTO mínimo |
+| consultar_usuarios | Denegado | Denegado | Usuarios operativos mínimos, con filtros de nombre/email, activo y rol |
 | consultar_tareas_operativas | Denegado | Sólo propias | Todas |
 | crear_tarea_operativa, actualizar_tarea_operativa, cambiar_estado_tarea_operativa | Denegado | `mcp:write`; sólo propia, asignación forzada | `mcp:write`; todas, puede reasignar |
 | consultar_tiempos | Denegado | Sólo propios | Todos según filtros |

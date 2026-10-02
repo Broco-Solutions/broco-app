@@ -19,10 +19,13 @@ import {
 import {
   mcpErrorResult,
   requireMcpActor,
+  requireMcpAdmin,
   requireMcpWriteActor,
 } from "@/server/mcp/identity";
+import { listUsersForMcp } from "@/server/services/users";
 
 export const OPERATIONAL_MCP_READ_TOOL_NAMES = [
+  "consultar_usuarios",
   "consultar_tareas_operativas",
   "consultar_proyectos_operativos",
   "consultar_tiempos",
@@ -123,10 +126,37 @@ async function write<T>(ctx: ServerContext, fn: (actor: Awaited<ReturnType<typeo
   }
 }
 
+async function adminRead<T>(ctx: ServerContext, fn: (actor: Awaited<ReturnType<typeof requireMcpAdmin>>) => Promise<T>) {
+  try {
+    return result(await fn(await requireMcpAdmin(ctx)) as Record<string, unknown>);
+  } catch (error) {
+    return mcpErrorResult(error);
+  }
+}
+
 export function registerOperationalTools(
   server: McpServer,
   options: { writeEnabled?: boolean } = {},
 ) {
+  server.registerTool(
+    "consultar_usuarios",
+    {
+      title: "Consultar usuarios",
+      description: "Busca usuarios activos o inactivos por nombre o email. Sólo ADMIN puede consultar el listado y los datos devueltos son operativos mínimos.",
+      inputSchema: z.object({ texto: z.string().trim().min(1).max(200).optional(), activo: z.boolean().optional(), rol: z.enum(["ADMIN", "COLLABORATOR"]).optional(), pagina: page, limite: limit }).strict(),
+      ...readMetadata,
+    },
+    async (input, ctx) => adminRead(ctx, async () => {
+      const rows = await listUsersForMcp({ search: input.texto, isActive: input.activo, role: input.rol, skip: (input.pagina - 1) * input.limite, take: input.limite + 1 });
+      return {
+        pagina: input.pagina,
+        limite: input.limite,
+        hayMas: rows.length > input.limite,
+        usuarios: rows.slice(0, input.limite).map((user) => ({ id: user.id, nombre: user.name, email: user.email, rol: user.role, activo: user.isActive })),
+      };
+    }),
+  );
+
   server.registerTool(
     "consultar_tareas_operativas",
     {

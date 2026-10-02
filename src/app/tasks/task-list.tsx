@@ -174,7 +174,7 @@ export function TaskList({
 
       {filtered.length === 0 ? <EmptyState title="No hay tareas para estos filtros" description="Probá limpiar los filtros o creá una nueva tarea operativa." /> : (
         <>
-          <div className="hidden md:block">
+          <div className="hidden lg:block">
             <DataTable
               tableClassName="table-fixed"
               headers={isAdmin
@@ -201,7 +201,7 @@ export function TaskList({
               })}
             </DataTable>
           </div>
-          <div className="space-y-2 md:hidden">
+          <div className="space-y-2 lg:hidden">
             {filtered.map((task) => {
               const overdue = isOverdue(task, today);
               return (

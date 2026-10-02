@@ -15,6 +15,7 @@ import {
   getProjectSummaries,
   incomesInputSchema,
   MCP_TOOL_NAMES,
+  WRITE_MCP_TOOL_NAMES,
   registerTools,
   type McpReadServices,
 } from "@/server/mcp/tools";
@@ -488,6 +489,12 @@ describe("límites y DTOs MCP", () => {
 });
 
 describe("superficie MCP solo lectura", () => {
+  it("mantiene el inventario esperado de lectura y escritura", () => {
+    expect(MCP_TOOL_NAMES).toHaveLength(15);
+    expect(WRITE_MCP_TOOL_NAMES).toHaveLength(30);
+    expect(new Set([...MCP_TOOL_NAMES, ...WRITE_MCP_TOOL_NAMES]).size).toBe(45);
+  });
+
   it("registra exactamente las tools marcadas como no destructivas", () => {
     const registered: Array<{ name: string; definition: Record<string, unknown> }> = [];
     const server = {

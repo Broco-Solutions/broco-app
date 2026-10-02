@@ -20,8 +20,8 @@ import { OPERATIONAL_MCP_WRITE_TOOL_NAMES } from "@/server/mcp/operational-tools
 export const WRITE_MCP_TOOL_NAMES = [
   "crear_ingreso", "actualizar_ingreso", "marcar_ingreso_cobrado", "eliminar_ingreso",
   "crear_gasto", "actualizar_gasto", "marcar_gasto_pagado", "eliminar_gasto",
-  "consultar_tipos_ingreso", "crear_tipo_ingreso", "actualizar_tipo_ingreso", "eliminar_tipo_ingreso",
-  "consultar_categorias_gasto", "crear_categoria_gasto", "actualizar_categoria_gasto", "eliminar_categoria_gasto",
+  "crear_tipo_ingreso", "actualizar_tipo_ingreso", "eliminar_tipo_ingreso",
+  "crear_categoria_gasto", "actualizar_categoria_gasto", "eliminar_categoria_gasto",
   "crear_fase_proyecto", "actualizar_fase_proyecto", "reordenar_fases_proyecto", "eliminar_fase_proyecto",
   "crear_tarea_proyecto", "actualizar_tarea_proyecto", "cambiar_estado_tarea", "mover_tarea_de_fase", "reordenar_tareas_proyecto", "eliminar_tarea_proyecto",
   ...OPERATIONAL_MCP_WRITE_TOOL_NAMES,
@@ -119,16 +119,7 @@ const incomeUpdate = z.object({ incomeId: uuid, concepto: text.optional(), typeI
 const expenseCreate = z.object({ concepto: text, categoryId: uuid, projectId: uuid.nullable().optional(), tipo: z.enum(["FIXED", "VARIABLE"]), dinero: money, situacion: z.union([pending, paidExpense]) }).strict();
 const expenseUpdate = z.object({ expenseId: uuid, concepto: text.optional(), categoryId: uuid.optional(), projectId: uuid.nullable().optional(), tipo: z.enum(["FIXED", "VARIABLE"]).optional(), dinero: money.optional(), situacion: z.union([pending, paidExpense]).optional() }).strict().refine((value) => Object.keys(value).length > 1, "Debe indicar un cambio");
 
-export function registerWriteTools(server: McpServer) {
-  const call = <T>(operation: string, entity: string, fn: (input: T, ctx: ServerContext) => Promise<Record<string, unknown>>) => async (input: T, ctx: ServerContext) => {
-    try {
-      const actor = await requireMcpWriteActor(ctx);
-      if (actor.role !== "ADMIN") {
-        throw new McpAuthorizationError("FORBIDDEN", "No tenés acceso a esta operación en Broco App.");
-      }
-      return result(await fn(input, ctx));
-    } catch (error) { return errorResult(error); }
-  };
+export function registerCatalogReadTools(server: McpServer) {
   server.registerTool("consultar_tipos_ingreso", { title: "Consultar tipos de ingreso", description: "Lista tipos de ingreso sin datos privados.", inputSchema: z.object({ pagina: z.number().int().min(1).default(1), limite: z.number().int().min(1).max(50).default(20) }).strict(), ...readMetadata }, async (input, ctx) => {
     try {
       await requireMcpAdmin(ctx);
@@ -143,6 +134,18 @@ export function registerWriteTools(server: McpServer) {
       return result({ pagina: input.pagina, limite: input.limite, hayMas: rows.length > start + input.limite, categorias: rows.slice(start, start + input.limite).map((row) => ({ id: row.id, nombre: row.name, activo: row.isActive, cantidadGastos: row._count.expenses })) });
     } catch (error) { return errorResult(error); }
   });
+}
+
+export function registerWriteTools(server: McpServer) {
+  const call = <T>(operation: string, entity: string, fn: (input: T, ctx: ServerContext) => Promise<Record<string, unknown>>) => async (input: T, ctx: ServerContext) => {
+    try {
+      const actor = await requireMcpWriteActor(ctx);
+      if (actor.role !== "ADMIN") {
+        throw new McpAuthorizationError("FORBIDDEN", "No tenés acceso a esta operación en Broco App.");
+      }
+      return result(await fn(input, ctx));
+    } catch (error) { return errorResult(error); }
+  };
   server.registerTool("crear_ingreso", { title: "Crear ingreso", description: "Crea un ingreso financiero.", inputSchema: incomeCreate, ...writeMetadata() }, call("crear_ingreso", "income", async (input, ctx) => { const created = await createIncome(incomeInput(input)); const row = await getIncome(created.id); audit(ctx, "crear_ingreso", "income", row.id, ["concepto", "tipo", "dinero", "situacion"]); return { operacion: "creado", ingreso: toFlowIncomeDto(row, today()) }; }));
   server.registerTool("actualizar_ingreso", { title: "Actualizar ingreso", description: "Actualiza campos controlados de un ingreso.", inputSchema: incomeUpdate, ...writeMetadata(false, true) }, call("actualizar_ingreso", "income", async (input, ctx) => { const patch: any = {}; if (input.concepto !== undefined) patch.concept = input.concepto; if (input.typeId !== undefined) patch.typeId = input.typeId; if (input.projectId !== undefined) patch.projectId = input.projectId; if (input.clientId !== undefined) patch.clientId = input.clientId; if (input.dinero) Object.assign(patch, moneyPatch(input.dinero)); if (input.situacion) { patch.status = input.situacion.estado; patch.dueDate = input.situacion.vencimiento ?? null; patch.effectiveDate = input.situacion.estado === "PAID" ? input.situacion.fechaCobro : null; } const updated = await patchIncomeForMcp(input.incomeId, patch); const row = await getIncome(updated.id); audit(ctx, "actualizar_ingreso", "income", row.id, Object.keys(input).filter((key) => key !== "incomeId")); return { operacion: "actualizado", ingreso: toFlowIncomeDto(row, today()) }; }));
   server.registerTool("marcar_ingreso_cobrado", { title: "Marcar ingreso cobrado", description: "Marca un ingreso como cobrado con fecha efectiva.", inputSchema: z.object({ incomeId: uuid, fechaCobro: date }).strict(), ...writeMetadata(false, true) }, call("marcar_ingreso_cobrado", "income", async (input, ctx) => { await markIncomePaidForMcp(input.incomeId, input.fechaCobro); const row = await getIncome(input.incomeId); audit(ctx, "marcar_ingreso_cobrado", "income", row.id, ["estado", "fechaCobro"]); return { operacion: "cobrado", ingreso: toFlowIncomeDto(row, today()) }; }));

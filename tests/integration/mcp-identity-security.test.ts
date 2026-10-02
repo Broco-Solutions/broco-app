@@ -92,6 +92,24 @@ describe.skipIf(!hasDb)("MCP identidad y autorización", () => {
   it("niega OAuth válido sin AppUser e inactivo", async () => {
     expect(errorCode(await call("unknown", "consultar_tiempos", {}))).toBe("APP_USER_REQUIRED");
     expect(errorCode(await call("inactive", "consultar_tiempos", {}))).toBe("APP_USER_INACTIVE");
+    expect(errorCode(await call("unknown", "consultar_usuarios", { texto: "mcp" }))).toBe("APP_USER_REQUIRED");
+    expect(errorCode(await call("inactive", "consultar_usuarios", { texto: "mcp" }))).toBe("APP_USER_INACTIVE");
+  });
+
+  it("permite al ADMIN buscar usuarios por nombre/email, filtrar, paginar y devuelve sólo el DTO operativo", async () => {
+    const byName = await call("admin", "consultar_usuarios", { texto: "mcp-col" });
+    expect(byName.result?.structuredContent.usuarios).toEqual([expect.objectContaining({ id: collaboratorId, nombre: expect.stringContaining("mcp-col"), email: expect.stringContaining("mcp-col"), rol: "COLLABORATOR", activo: true })]);
+    const byEmail = await call("admin", "consultar_usuarios", { texto: (await prisma.appUser.findUniqueOrThrow({ where: { id: collaboratorId } })).email });
+    expect(byEmail.result?.structuredContent.usuarios).toHaveLength(1);
+    expect(byEmail.result?.structuredContent.usuarios[0].id).toBe(collaboratorId);
+    const inactive = await call("admin", "consultar_usuarios", { activo: false });
+    expect(inactive.result?.structuredContent.usuarios.map((user: { id: string }) => user.id)).toContain(inactiveId);
+    const admins = await call("admin", "consultar_usuarios", { rol: "ADMIN" });
+    expect(admins.result?.structuredContent.usuarios.every((user: { rol: string }) => user.rol === "ADMIN")).toBe(true);
+    const page = await call("admin", "consultar_usuarios", { texto: "mcp", pagina: 1, limite: 1 });
+    expect(page.result?.structuredContent).toMatchObject({ pagina: 1, limite: 1, hayMas: true });
+    expect(JSON.stringify(byName)).not.toMatch(/password|token|sessionVersion|mcpIdentity|subject|oauth/i);
+    expect(errorCode(await call("collaborator", "consultar_usuarios", { texto: "mcp" }))).toBe("FORBIDDEN");
   });
 
   it("crea el primer vínculo con email verificado y luego usa provider + subject", async () => {
