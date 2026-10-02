@@ -25,14 +25,14 @@ async function assertProjectScope(actor: CurrentUser, userId: string, projectId:
   if (!project) throw new Error("Proyecto inexistente.");
   if (!project.isActive) throw new Error("No se pueden cargar horas en un proyecto inactivo.");
   if (actor.role === "ADMIN") return project;
-  const assigned = await tx.hourAssignment.findUnique({ where: { userId_projectId: { userId, projectId } } });
+  const assigned = await tx.userProjectAccess.findUnique({ where: { userId_projectId: { userId, projectId } } });
   if (!assigned || !project.isActive) throw new Error("La persona no tiene autorización para cargar en este proyecto activo.");
   return project;
 }
 
 export async function listHourOptions(actor: CurrentUser, userId = actor.id) {
   if (actor.role !== "ADMIN" && userId !== actor.id) throw new Error("No autorizado.");
-  const where = actor.role === "ADMIN" ? { isActive: true } : { isActive: true, hourAssignments: { some: { userId } } };
+  const where = actor.role === "ADMIN" ? { isActive: true } : { isActive: true, userProjectAccess: { some: { userId } } };
   return prisma.project.findMany({ where, select: { id: true, name: true, client: { select: { id: true, name: true } } }, orderBy: [{ client: { name: "asc" } }, { name: "asc" }] });
 }
 

@@ -46,12 +46,12 @@ suite("Tareas Operativas — dominio y seguridad", () => {
     projectAId = projectA.id;
     projectBId = projectB.id;
     otherClientProjectId = otherClientProject.id;
-    await prisma.hourAssignment.create({ data: { userId: collaboratorA.id, projectId: projectAId } });
+    await prisma.userProjectAccess.create({ data: { userId: collaboratorA.id, projectId: projectAId } });
   });
 
   afterAll(async () => {
     await prisma.operationalTask.deleteMany({ where: { creatorId: { in: [admin.id, collaboratorA.id, collaboratorB.id] } } });
-    await prisma.hourAssignment.deleteMany({ where: { userId: { in: [collaboratorA.id, collaboratorB.id] } } });
+    await prisma.userProjectAccess.deleteMany({ where: { userId: { in: [collaboratorA.id, collaboratorB.id] } } });
     await prisma.project.deleteMany({ where: { id: { in: [projectAId, projectBId, otherClientProjectId] } } });
     await prisma.client.deleteMany({ where: { id: { in: [clientId, otherClientId] } } });
     await prisma.appUser.deleteMany({ where: { id: { in: [admin.id, collaboratorA.id, collaboratorB.id] } } });
@@ -70,7 +70,7 @@ suite("Tareas Operativas — dominio y seguridad", () => {
     expect(task.project?.client.id).toBe(clientId);
   });
 
-  it("limita proyectos al HourAssignment actual", async () => {
+  it("limita proyectos al acceso a proyectos actual", async () => {
     const options = await listOperationalTaskProjectOptions(collaboratorA);
     expect(options.map((project) => project.id)).toContain(projectAId);
     expect(options.map((project) => project.id)).not.toContain(projectBId);

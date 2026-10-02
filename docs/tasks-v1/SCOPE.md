@@ -12,7 +12,7 @@
 ## Reglas funcionales
 
 - Un colaborador sólo ve y modifica tareas donde es responsable.
-- Un colaborador sólo crea tareas para sí mismo y sólo usa proyectos activos presentes en sus `HourAssignment`.
+- Un colaborador sólo crea tareas para sí mismo y sólo usa proyectos activos presentes en su acceso a proyectos (`UserProjectAccess`).
 - Un administrador ve todas las tareas, crea para cualquier usuario activo y puede reasignar.
 - Bloquear exige un motivo. Al salir de `BLOCKED`, el motivo se conserva como contexto.
 - Al entrar en `DONE`, se establece `completedAt`; al reabrir, se limpia.

@@ -6,7 +6,6 @@ import {
   Layers,
   ListChecks,
   Settings2,
-  UserRoundCog,
   UsersRound,
   Clock3,
   ListTodo,
@@ -30,7 +29,6 @@ export const navigationItems = [
     children: [
       { href: "/hours", label: "Registros", icon: ListChecks },
       { href: "/hours/reports", label: "Reportes", icon: Activity },
-      { href: "/hours/team", label: "Asignaciones", icon: UserRoundCog },
     ],
   },
   {

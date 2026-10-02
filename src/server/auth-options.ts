@@ -5,7 +5,7 @@ import { compare } from "bcryptjs";
 
 export const authOptions: NextAuthOptions = {
   secret: process.env.AUTH_SECRET,
-  session: { strategy: "jwt", maxAge: 60 * 60 * 12 },
+  session: { strategy: "jwt", maxAge: 60 * 60 * 24 * 30 },
   pages: { signIn: "/login" },
   providers: [
     CredentialsProvider({

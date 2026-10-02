@@ -5,8 +5,9 @@
 El módulo independiente `/hours`, presentado en la interfaz como **Tiempos**,
 permite registrar minutos normalizados por persona, cliente y proyecto,
 consultar registros, reportar horas registradas y exportar el detalle filtrado
-a CSV. `/hours/team` es exclusivo de administradores y contiene únicamente
-asignaciones usuario → proyecto. Las anulaciones son lógicas y dejan auditoría.
+a CSV. El acceso usuario → proyecto se administra en Administración > Usuarios
+y es compartido por Tiempos y Tareas Operativas. Las anulaciones son lógicas y
+dejan auditoría.
 
 Los colaboradores solo ven Tiempos > Registros, con sus indicadores, filtros y
 registros propios; registran únicamente en proyectos activos asignados. Los
@@ -16,13 +17,12 @@ asignación. El portal `/p` y el MCP mantienen autenticación y permisos
 independientes.
 
 La gestión de identidad es global en `/users` y exclusiva de administradores:
-nombre, correo, rol, estado, activación y edición básica de la cuenta. Horas
-mantiene `/hours/team` únicamente para asignar proyectos a colaboradores; los
-clientes se derivan de esos proyectos existentes.
+nombre, correo, rol, estado, activación, edición básica de la cuenta y acceso a
+proyectos por colaborador. Los clientes se derivan de esos proyectos existentes.
 
 ## Decisiones
 
-- Auth.js/NextAuth con Credentials y sesión JWT de 12 horas. La cuenta activa, rol y versión de sesión se vuelven a consultar en servidor; desactivar o cambiar el rol incrementa la versión y bloquea el acceso en el siguiente request. Middleware es navegación temprana; las lecturas y mutaciones administrativas verifican rol en servidor. No se acepta `broco_session` ni clave compartida.
+- Auth.js/NextAuth con Credentials y sesión JWT de 30 días. La cuenta activa, rol y versión de sesión se vuelven a consultar en servidor; desactivar o cambiar el rol incrementa la versión y bloquea el acceso en el siguiente request. Middleware es navegación temprana; las lecturas y mutaciones administrativas verifican rol en servidor. No se acepta `broco_session` ni clave compartida.
 - `bcryptjs` hashea contraseñas; los enlaces de activación son tokens aleatorios, almacenados solo como SHA-256, de un uso y con vencimiento de 24 horas. Emitir uno nuevo revoca los anteriores; reclamarlo, activar la cuenta e invalidar el resto sucede atómicamente. El token en claro no se persiste ni se registra.
 - La suma diaria se valida dentro de una transacción Serializable con lock advisory por persona/fecha. El máximo es 1440 minutos. La fecha operativa usa `America/Argentina/Cordoba`, se valida como fecha calendario real y las correcciones usan control de versión para no sobrescribir cambios concurrentes.
 - `TimeEntry` separa la persona que trabajó (`userId`) de quien cargó o corrigió (`createdById`/`modifiedById`) y conserva auditoría before/after.
@@ -84,10 +84,11 @@ El script rechaza cualquier host distinto de `localhost:5434` y no imprime la co
   escenarios de autenticación usan login real y el resultado exacto se valida
   en cada ejecución.
 - En la navegación actual, ADMIN dispone de Tiempos > Registros, Reportes y
-  Asignaciones; COLLABORATOR dispone únicamente de Tiempos > Registros, con
+  Administración > Usuarios con acceso a proyectos por colaborador;
+  COLLABORATOR dispone únicamente de Tiempos > Registros, con
   KPIs y filtros personales dentro de la misma pantalla.
 - Verificación visual Playwright: `/login`, `/hours`, `/hours/reports` y
-  `/hours/team` en escritorio y móvil, sin errores de consola observados.
+  `/users/<id>` en escritorio y móvil, sin errores de consola observados.
   La CLI `agent-browser` no está instalada en este entorno; se usó Playwright
   directamente como fallback.
 - La baseline de tests se mantiene verde; no se acepta una baseline roja para

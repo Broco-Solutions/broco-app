@@ -42,6 +42,7 @@ model Project {
   clientId                       String    @map("client_id") @db.Uuid
   name                           String
   isActive                       Boolean   @default(true) @map("is_active")
+  isInternal                     Boolean   @default(false) @map("is_internal")
   startDate                      DateTime? @map("start_date") @db.Date
   endDate                        DateTime? @map("end_date") @db.Date
   goLiveDate                     DateTime? @map("go_live_date") @db.Date
@@ -64,7 +65,7 @@ model Project {
   phases                         ProjectPhase[]
   tasks                          ProjectTask[]
   shareLink                      ProjectShareLink?
-  hourAssignments               HourAssignment[]
+  userProjectAccess             UserProjectAccess[]
   timeEntries                   TimeEntry[]
   operationalTasks             OperationalTask[]
 
@@ -89,7 +90,7 @@ model AppUser {
   sessionVersion      Int               @default(0) @map("session_version")
   createdAt           DateTime          @default(now()) @map("created_at")
   updatedAt           DateTime          @updatedAt @map("updated_at")
-  assignments         HourAssignment[]
+  projectAccess       UserProjectAccess[]
   createdEntries      TimeEntry[]       @relation("time_entry_creator")
   workedEntries       TimeEntry[]       @relation("time_entry_worker")
   modifiedEntries     TimeEntry[]       @relation("time_entry_modifier")
@@ -135,7 +136,7 @@ model AccessToken {
   @@map("access_tokens")
 }
 
-model HourAssignment {
+model UserProjectAccess {
   id        String   @id @default(uuid()) @db.Uuid
   userId    String   @map("user_id") @db.Uuid
   projectId String   @map("project_id") @db.Uuid
@@ -145,7 +146,7 @@ model HourAssignment {
 
   @@unique([userId, projectId])
   @@index([projectId])
-  @@map("hour_assignments")
+  @@map("user_project_access")
 }
 
 model TimeEntry {

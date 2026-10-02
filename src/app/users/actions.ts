@@ -23,7 +23,7 @@ export async function saveUser(formData: FormData) {
     await prisma.appUser.create({ data: { name, email, role, passwordHash: await hash(temporaryPassword, 12), isActive: false } });
   }
   revalidatePath("/users");
-  revalidatePath("/hours/team");
+  revalidatePath("/users");
   revalidatePath("/hours");
 }
 
@@ -44,5 +44,5 @@ export async function toggleUser(formData: FormData) {
   const active = formData.get("active") === "true";
   await setAppUserActive(id, !active);
   revalidatePath("/users");
-  revalidatePath("/hours/team");
+  revalidatePath("/users");
 }

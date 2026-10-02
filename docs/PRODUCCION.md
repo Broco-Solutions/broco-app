@@ -259,7 +259,8 @@ ningún ADMIN. No sobrescribe correos existentes ni registra la contraseña.
 Antes de crear colaboradores reales, validar principalmente lecturas:
 
 - ADMIN: login; Dashboard; Clientes y detalle; Proyectos y detalle; Ingresos;
-  Gastos; Tiempos/Registros; Reportes; Asignaciones; Usuarios.
+  Gastos; Tiempos/Registros; Reportes; Usuarios y el acceso a proyectos dentro
+  de cada colaborador.
 - Finanzas: comprobar lecturas y filtros; no crear ni editar datos reales como
   smoke inicial.
 - Portal: abrir un proyecto existente, confirmar acceso read-only y ausencia de

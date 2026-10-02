@@ -68,7 +68,7 @@ describe.skipIf(!hasDb)("MCP identidad y autorización", () => {
       prisma.project.create({ data: { clientId, name: `mcp-security-b-${suffix}` } }),
     ]);
     projectA = a.id; projectB = b.id;
-    await prisma.hourAssignment.create({ data: { userId: collaborator.id, projectId: a.id } });
+    await prisma.userProjectAccess.create({ data: { userId: collaborator.id, projectId: a.id } });
     const [own, foreign] = await Promise.all([
       prisma.operationalTask.create({ data: { title: "Propia", creatorId: collaborator.id, assigneeId: collaborator.id, projectId: a.id } }),
       prisma.operationalTask.create({ data: { title: "Ajena", creatorId: admin.id, assigneeId: other.id, projectId: b.id } }),
@@ -80,7 +80,7 @@ describe.skipIf(!hasDb)("MCP identidad y autorización", () => {
     if (clientId) {
       await prisma.timeEntry.deleteMany({ where: { projectId: { in: [projectA, projectB] } } });
       await prisma.operationalTask.deleteMany({ where: { id: { in: [ownTask, foreignTask] } } });
-      await prisma.hourAssignment.deleteMany({ where: { userId: collaboratorId } });
+      await prisma.userProjectAccess.deleteMany({ where: { userId: collaboratorId } });
       await prisma.project.deleteMany({ where: { id: { in: [projectA, projectB] } } });
       await prisma.client.deleteMany({ where: { id: clientId } });
     }
@@ -160,7 +160,7 @@ describe.skipIf(!hasDb)("MCP identidad y autorización", () => {
     await prisma.operationalTask.delete({ where: { id: createdId } });
   });
 
-  it("respeta HourAssignment, ownership de tarea y usuario derivado al registrar tiempo", async () => {
+  it("respeta el acceso a proyectos, ownership de tarea y usuario derivado al registrar tiempo", async () => {
     const deniedProject = await call("collaborator", "registrar_tiempo", { projectId: projectB, fecha: "2026-10-01", hours: 1, idempotencyKey: crypto.randomUUID(), descripcion: "Sin asignación", userId: otherId });
     expect(errorCode(deniedProject)).toBe("VALIDATION_ERROR");
     const deniedTask = await call("collaborator", "registrar_tiempo", { operationalTaskId: foreignTask, fecha: "2026-10-01", minutes: 30, idempotencyKey: crypto.randomUUID() });

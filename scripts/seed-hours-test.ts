@@ -15,8 +15,8 @@ async function main() {
   const [clientA, clientB] = await Promise.all([client("Horas Test Cliente A"), client("Horas Test Cliente B")]);
   const [projectA, projectB] = await Promise.all([project(clientA.id, "Horas Test Proyecto A1"), project(clientB.id, "Horas Test Proyecto B1")]);
   const [admin, collaboratorA, collaboratorB] = await Promise.all([user("Admin Horas Test", "admin@test.local", "ADMIN"), user("Colaborador A Test", "dev-a@test.local", "COLLABORATOR"), user("Colaborador B Test", "dev-b@test.local", "COLLABORATOR")]);
-  await prisma.hourAssignment.upsert({ where: { userId_projectId: { userId: collaboratorA.id, projectId: projectA.id } }, update: {}, create: { userId: collaboratorA.id, projectId: projectA.id } });
-  await prisma.hourAssignment.upsert({ where: { userId_projectId: { userId: collaboratorB.id, projectId: projectB.id } }, update: {}, create: { userId: collaboratorB.id, projectId: projectB.id } });
+  await prisma.userProjectAccess.upsert({ where: { userId_projectId: { userId: collaboratorA.id, projectId: projectA.id } }, update: {}, create: { userId: collaboratorA.id, projectId: projectA.id } });
+  await prisma.userProjectAccess.upsert({ where: { userId_projectId: { userId: collaboratorB.id, projectId: projectB.id } }, update: {}, create: { userId: collaboratorB.id, projectId: projectB.id } });
   console.log(JSON.stringify({ adminId: admin.id, collaboratorAId: collaboratorA.id, collaboratorBId: collaboratorB.id, projectAId: projectA.id, projectBId: projectB.id }));
   await prisma.$disconnect();
 }

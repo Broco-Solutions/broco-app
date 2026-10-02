@@ -38,7 +38,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  const isRestrictedAdminPath = pathname === "/" || ["/clients", "/projects", "/incomes", "/expenses", "/users", "/hours/team", "/hours/reports"].some((path) => pathname === path || pathname.startsWith(`${path}/`));
+  const isRestrictedAdminPath = pathname === "/" || ["/clients", "/projects", "/incomes", "/expenses", "/users", "/hours/reports"].some((path) => pathname === path || pathname.startsWith(`${path}/`));
   if (session.role === "COLLABORATOR" && isRestrictedAdminPath) {
     return isApiRequest ? NextResponse.json({ error: "No autorizado." }, { status: 403 }) : NextResponse.redirect(new URL("/hours", request.url));
   }

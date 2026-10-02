@@ -5,12 +5,13 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { saveUser, toggleUser } from "./actions";
 import { ActivationLinkControl } from "./activation-link-control";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
 export default async function UsersPage() {
   await requireRole("ADMIN");
-  const users = await prisma.appUser.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, email: true, role: true, isActive: true } });
+  const users = await prisma.appUser.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, email: true, role: true, isActive: true, _count: { select: { projectAccess: true } } } });
   return <div className="space-y-6">
     <PageHeader eyebrow="Administración" title="Usuarios" description="Administrá las cuentas individuales y el acceso a Broco App." meta={null} />
     <Card>
@@ -28,6 +29,7 @@ export default async function UsersPage() {
         <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
           <div className="min-w-0"><h2 className="break-words font-semibold">{user.name}</h2><p className="break-words text-sm text-gray-500">{user.email} · {user.role === "ADMIN" ? "Administrador" : "Colaborador"}</p><p className="mt-1 text-xs font-medium text-gray-500">{user.isActive ? "Activo" : "Inactivo / pendiente de activación"}</p></div>
           <div className="flex shrink-0 flex-wrap gap-2">
+            {user.role === "COLLABORATOR" ? <Link href={`/users/${user.id}`} className="inline-flex h-9 items-center rounded-lg border border-gray-200 px-3 text-sm font-medium text-brand hover:bg-gray-50">Proyectos ({user._count.projectAccess})</Link> : null}
             {user.isActive ? <form action={toggleUser}><input type="hidden" name="id" value={user.id} /><input type="hidden" name="active" value="true" /><Button variant="secondary" type="submit">Desactivar</Button></form> : null}
           </div>
         </div>

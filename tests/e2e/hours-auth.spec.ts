@@ -25,8 +25,8 @@ test.describe("Horas V1 - autenticación y permisos", () => {
     await page.goto("/login"); await page.getByLabel(/correo/i).fill("admin@test.local"); await page.locator("#password").fill("incorrecta-incorrecta"); await page.getByRole("button", { name: "Ingresar" }).click(); await expect(page.locator("p[role=alert]")).toContainText("incorrectos");
   });
 
-  test("admin ve Tiempos, Reportes y Asignaciones", async ({ page }) => {
-    await loginAsAdmin(page); await page.goto("/hours/team"); await expect(page.getByRole("heading", { name: "Asignaciones" })).toBeVisible(); await page.goto("/hours/reports"); await expect(page.getByRole("heading", { name: "Reportes" })).toBeVisible();
+  test("admin ve Tiempos, Reportes y acceso a proyectos dentro de Usuarios", async ({ page }) => {
+    await loginAsAdmin(page); await page.goto("/users"); await expect(page.getByRole("heading", { name: "Usuarios" })).toBeVisible(); await page.goto("/hours/reports"); await expect(page.getByRole("heading", { name: "Reportes" })).toBeVisible();
   });
 
   test("colaborador A entra a sus horas y no a finanzas", async ({ page }) => {

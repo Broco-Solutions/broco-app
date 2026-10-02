@@ -182,7 +182,7 @@ export async function listOperationalTaskProjectOptions(actor: CurrentUser) {
   return prisma.project.findMany({
     where: actor.role === "ADMIN"
       ? { isActive: true }
-      : { isActive: true, hourAssignments: { some: { userId: actor.id } } },
+      : { isActive: true, userProjectAccess: { some: { userId: actor.id } } },
     select: { id: true, name: true, client: { select: { id: true, name: true } } },
     orderBy: [{ client: { name: "asc" } }, { name: "asc" }, { id: "asc" }],
   });
@@ -208,7 +208,7 @@ async function assertProjectAccess(actor: CurrentUser, projectId: string, tx: Pr
   if (!project) throw new Error("Proyecto inexistente.");
   if (!project.isActive) throw new Error("Sólo se pueden usar proyectos activos.");
   if (actor.role === "COLLABORATOR") {
-    const assignment = await tx.hourAssignment.findUnique({ where: { userId_projectId: { userId: actor.id, projectId } }, select: { id: true } });
+    const assignment = await tx.userProjectAccess.findUnique({ where: { userId_projectId: { userId: actor.id, projectId } }, select: { id: true } });
     if (!assignment) throw new Error("No tenés autorización para usar este proyecto.");
   }
 }
