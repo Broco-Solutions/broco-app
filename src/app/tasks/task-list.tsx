@@ -176,26 +176,25 @@ export function TaskList({
         <>
           <div className="hidden xl:block">
             <DataTable
-              tableClassName="table-fixed"
+              tableClassName="table-fixed text-xs"
+              scrollable={false}
               headers={isAdmin
-                ? [sortHeader("Estado", "status"), "Tarea", "Cliente", "Proyecto", sortHeader("Responsable", "assignee"), sortHeader("Vencimiento", "due"), "Tiempo", sortHeader("Actualización", "updated")]
-                : [sortHeader("Estado", "status"), "Tarea", "Cliente", "Proyecto", sortHeader("Vencimiento", "due"), "Tiempo", sortHeader("Actualización", "updated")]}
+                ? [sortHeader("Estado", "status"), "Tarea", "Cliente / proyecto", sortHeader("Resp.", "assignee"), sortHeader("Vence", "due"), "Hs."]
+                : [sortHeader("Estado", "status"), "Tarea", "Cliente / proyecto", sortHeader("Vence", "due"), "Hs."]}
               colGroup={isAdmin
-                ? <colgroup><col style={{width:"11%"}} /><col style={{width:"21%"}} /><col style={{width:"13%"}} /><col style={{width:"14%"}} /><col style={{width:"13%"}} /><col style={{width:"10%"}} /><col style={{width:"8%"}} /><col style={{width:"10%"}} /></colgroup>
-                : <colgroup><col style={{width:"13%"}} /><col style={{width:"27%"}} /><col style={{width:"15%"}} /><col style={{width:"16%"}} /><col style={{width:"11%"}} /><col style={{width:"8%"}} /><col style={{width:"10%"}} /></colgroup>}
+                ? <colgroup><col style={{width:"14%"}} /><col style={{width:"30%"}} /><col style={{width:"24%"}} /><col style={{width:"15%"}} /><col style={{width:"10%"}} /><col style={{width:"7%"}} /></colgroup>
+                : <colgroup><col style={{width:"16%"}} /><col style={{width:"35%"}} /><col style={{width:"28%"}} /><col style={{width:"13%"}} /><col style={{width:"8%"}} /></colgroup>}
             >
               {filtered.map((task) => {
                 const overdue = isOverdue(task, today);
                 return (
                   <tr key={task.id} tabIndex={0} role="button" aria-label={`Abrir tarea ${task.title}`} className="cursor-pointer transition hover:bg-cobalt/[0.035] focus-visible:bg-cobalt/[0.06] focus-visible:outline-none" onClick={() => setSelectedId(task.id)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedId(task.id); } }}>
-                    <td className="px-3 py-2.5"><div className="flex flex-wrap gap-1"><OperationalTaskStatusBadge status={task.status} />{overdue ? <span className="rounded-md bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-700">Vencida</span> : null}</div></td>
-                    <td className="px-3 py-2.5"><div className="line-clamp-2 break-words font-medium text-ink" title={task.title}>{task.title}</div></td>
-                    <td className="px-3 py-2.5"><div className="truncate" title={task.project?.client.name}>{task.project?.client.name ?? "—"}</div></td>
-                    <td className="px-3 py-2.5"><div className="truncate" title={task.project?.name}>{task.project?.name ?? "—"}</div></td>
-                    {isAdmin ? <td className="px-3 py-2.5"><div className="truncate" title={task.assignee.name}>{task.assignee.name}</div></td> : null}
+                    <td className="px-2 py-2"><div className="flex flex-wrap gap-1"><OperationalTaskStatusBadge status={task.status} />{overdue ? <span className="rounded-md bg-red-50 px-1.5 py-0.5 text-[11px] font-semibold text-red-700">Vencida</span> : null}</div></td>
+                    <td className="px-2 py-2"><div className="line-clamp-2 break-words font-medium text-ink" title={task.title}>{task.title}</div></td>
+                    <td className="px-2 py-2"><div className="truncate" title={task.project ? `${task.project.client.name} · ${task.project.name}` : "Tarea general"}>{task.project ? <><p className="truncate">{task.project.client.name}</p><p className="truncate text-[11px] text-gray-500">{task.project.name}</p></> : "—"}</div></td>
+                    {isAdmin ? <td className="px-2 py-2"><div className="truncate" title={task.assignee.name}>{task.assignee.name}</div></td> : null}
                     <td className={`break-words px-2 py-2 tabular-nums ${overdue ? "font-semibold text-red-700" : ""}`}>{formatDate(task.dueDate)}</td>
                     <td className="break-words px-2 py-2 text-xs font-semibold tabular-nums text-gray-700">{task.timeMinutes > 0 ? `${Math.floor(task.timeMinutes / 60)} h ${task.timeMinutes % 60} min` : "—"}</td>
-                    <td className="break-words px-2 py-2 text-xs tabular-nums text-gray-500">{formatDate(task.updatedAt)}</td>
                   </tr>
                 );
               })}
